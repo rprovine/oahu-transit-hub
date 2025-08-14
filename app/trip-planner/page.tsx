@@ -335,6 +335,45 @@ export default function TripPlanner() {
     }
   };
 
+  const selectRoute = async (route: RouteOption) => {
+    try {
+      // Track route selection in CRM
+      await fetch('/api/crm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'track_trip_plan',
+          contactEmail: 'user@example.com', // Would get from auth context
+          origin,
+          destination,
+          routeType: route.type
+        })
+      });
+
+      // Set selected route for detailed view
+      setSelectedRoute(route);
+      
+      // Navigate to route details page with full route data
+      const routeId = `${route.type}-${Date.now()}`;
+      const routeData = {
+        ...route,
+        origin,
+        destination,
+        selectedAt: new Date().toISOString()
+      };
+      
+      // Store route data in localStorage for the route page
+      localStorage.setItem(`route_${routeId}`, JSON.stringify(routeData));
+      
+      // Navigate to route details
+      window.location.href = `/route/${routeId}`;
+    } catch (error) {
+      console.error('Failed to select route:', error);
+      // Still set selected route locally
+      setSelectedRoute(route);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-ocean-50 to-tropical-50">
       <header className="bg-white shadow-sm border-b border-gray-200">
@@ -531,7 +570,10 @@ export default function TripPlanner() {
                       </div>
                     </div>
                     
-                    <button className="bg-ocean-600 text-white px-4 py-2 rounded-lg hover:bg-ocean-700 flex items-center gap-2">
+                    <button 
+                      onClick={() => selectRoute(route)}
+                      className="bg-ocean-600 text-white px-4 py-2 rounded-lg hover:bg-ocean-700 flex items-center gap-2"
+                    >
                       Select Route
                       <ArrowRight className="h-4 w-4" />
                     </button>

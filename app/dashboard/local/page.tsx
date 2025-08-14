@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { 
   MapPin, Bus, Train, Clock, CloudSun, Navigation, Home, Settings, 
   Bell, User, AlertTriangle, TrendingUp, Calendar, DollarSign,
-  Route, Zap, Wind, Waves, Mountain
+  Route, Zap, Wind, Waves, Mountain, ArrowLeft
 } from 'lucide-react';
 
 export default function LocalDashboard() {
@@ -31,6 +31,7 @@ export default function LocalDashboard() {
     ]
   });
   const [loading, setLoading] = useState(true);
+  const [selectedTab, setSelectedTab] = useState('main');
 
   useEffect(() => {
     // Load real data on component mount
@@ -228,6 +229,36 @@ export default function LocalDashboard() {
     }
   };
 
+  const selectRoute = async (route: any) => {
+    try {
+      // Track route selection in CRM
+      await fetch('/api/crm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'track_activity',
+          contactEmail: 'local@example.com', // Would get from auth context
+          activityType: 'route_selected',
+          details: {
+            route_type: route.type,
+            duration: route.duration,
+            cost: route.cost,
+            origin,
+            destination
+          }
+        })
+      });
+
+      // Navigate to route details page
+      const routeId = `${route.type}-${Date.now()}`;
+      window.location.href = `/route/${routeId}?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&type=${route.type}`;
+    } catch (error) {
+      console.error('Failed to select route:', error);
+      // Still navigate even if tracking fails
+      window.location.href = `/route/selected?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-ocean-50 to-white">
       <header className="bg-ocean-600 text-white p-4 shadow-lg">
@@ -238,27 +269,122 @@ export default function LocalDashboard() {
             </h1>
           </Link>
           <nav className="flex gap-4">
-            <button className="hover:text-ocean-200 flex items-center gap-2">
+            <button 
+              onClick={() => setSelectedTab('routes')}
+              className="hover:text-ocean-200 flex items-center gap-2"
+            >
               <Route className="h-4 w-4" />
               My Routes
             </button>
-            <button className="hover:text-ocean-200 flex items-center gap-2">
+            <button 
+              onClick={() => setSelectedTab('schedule')}
+              className="hover:text-ocean-200 flex items-center gap-2"
+            >
               <Calendar className="h-4 w-4" />
               Schedule
             </button>
-            <button className="hover:text-ocean-200 flex items-center gap-2">
+            <button 
+              onClick={() => setSelectedTab('alerts')}
+              className="hover:text-ocean-200 flex items-center gap-2"
+            >
               <Bell className="h-4 w-4" />
               Alerts
             </button>
-            <button className="hover:text-ocean-200 flex items-center gap-2">
+            <Link href="/settings" className="hover:text-ocean-200 flex items-center gap-2">
               <Settings className="h-4 w-4" />
               Settings
-            </button>
+            </Link>
           </nav>
         </div>
       </header>
 
       <main className="container mx-auto p-6">
+        {selectedTab !== 'main' && (
+          <div className="mb-6">
+            <button 
+              onClick={() => setSelectedTab('main')}
+              className="flex items-center gap-2 text-ocean-600 hover:text-ocean-700 mb-4"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Dashboard
+            </button>
+          </div>
+        )}
+
+        {selectedTab === 'routes' && (
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <h2 className="text-2xl font-bold mb-6">My Saved Routes</h2>
+            <div className="space-y-4">
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="font-semibold">🏠 Home → 🏢 Work</h3>
+                    <p className="text-sm text-gray-600">Usually 28 min • Route 8 + Walk</p>
+                    <p className="text-xs text-gray-500">Used 15 times this month</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="bg-ocean-600 text-white px-3 py-1 rounded text-sm">Use Route</button>
+                    <button className="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm">Edit</button>
+                  </div>
+                </div>
+              </div>
+              <div className="border border-gray-200 rounded-lg p-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="font-semibold">🏢 Work → 🏪 Ala Moana</h3>
+                    <p className="text-sm text-gray-600">Usually 15 min • Walk + Route 20</p>
+                    <p className="text-xs text-gray-500">Used 8 times this month</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="bg-ocean-600 text-white px-3 py-1 rounded text-sm">Use Route</button>
+                    <button className="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm">Edit</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {selectedTab === 'schedule' && (
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <h2 className="text-2xl font-bold mb-6">My Schedule</h2>
+            <div className="space-y-4">
+              <div className="border-l-4 border-ocean-500 pl-4 py-2">
+                <h3 className="font-semibold">Work Commute</h3>
+                <p className="text-sm text-gray-600">Monday-Friday, 7:30 AM</p>
+                <p className="text-xs text-gray-500">🏠 Home → 🏢 Work</p>
+              </div>
+              <div className="border-l-4 border-tropical-500 pl-4 py-2">
+                <h3 className="font-semibold">Grocery Run</h3>
+                <p className="text-sm text-gray-600">Saturdays, 10:00 AM</p>
+                <p className="text-xs text-gray-500">🏠 Home → 🛒 Foodland</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {selectedTab === 'alerts' && (
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <h2 className="text-2xl font-bold mb-6">Transit Alerts & Notifications</h2>
+            <div className="space-y-4">
+              {liveData.alerts.map((alert, idx) => (
+                <div key={idx} className="border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-yellow-600 mt-1" />
+                    <div>
+                      <h3 className="font-semibold capitalize">{alert.type} Alert</h3>
+                      <p className="text-sm text-gray-600">{alert.message}</p>
+                      <p className="text-xs text-gray-500 mt-1">2 minutes ago</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {selectedTab === 'main' && (
+          <>
         {/* Live Alerts */}
         {liveData.alerts.length > 0 && (
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
@@ -381,7 +507,10 @@ export default function LocalDashboard() {
                       <p key={idx} className="text-sm text-gray-600">• {step}</p>
                     ))}
                   </div>
-                  <button className="mt-3 bg-ocean-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-ocean-700">
+                  <button 
+                    onClick={() => selectRoute(route)}
+                    className="mt-3 bg-ocean-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-ocean-700"
+                  >
                     Select Route
                   </button>
                 </div>
@@ -453,6 +582,8 @@ export default function LocalDashboard() {
             </div>
           </div>
         </div>
+        </>
+        )}
       </main>
     </div>
   );

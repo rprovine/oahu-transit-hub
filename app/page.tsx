@@ -357,9 +357,11 @@ export default function Home() {
                   <span>Offline maps</span>
                 </li>
               </ul>
-              <button className="w-full bg-gray-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors">
-                Get Started Free
-              </button>
+              <Link href="/auth/signup">
+                <button className="w-full bg-gray-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors">
+                  Get Started Free
+                </button>
+              </Link>
             </div>
 
             {/* Premium Plan */}
@@ -398,9 +400,11 @@ export default function Home() {
                   <span>Advanced notifications</span>
                 </li>
               </ul>
-              <button className="w-full bg-white text-ocean-600 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-                Upgrade to Premium
-              </button>
+              <Link href="/auth/signup?plan=premium">
+                <button className="w-full bg-white text-ocean-600 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+                  Upgrade to Premium
+                </button>
+              </Link>
             </div>
           </div>
         </div>

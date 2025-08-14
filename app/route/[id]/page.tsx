@@ -16,29 +16,71 @@ export default function RouteDetails() {
   const [isTracking, setIsTracking] = useState(false);
 
   useEffect(() => {
-    // Simulate loading route data
-    const mockRouteData = {
-      id: routeId,
-      name: `Route ${routeId}`,
-      from: 'Kalihi Transit Center',
-      to: 'Ala Moana Center',
-      duration: '28 minutes',
-      cost: '$2.75',
-      nextDeparture: '5 minutes',
-      stops: [
-        { name: 'Kalihi Transit Center', time: '2:15 PM', status: 'departed' },
-        { name: 'Keeaumoku St', time: '2:22 PM', status: 'upcoming' },
-        { name: 'Ward Ave', time: '2:28 PM', status: 'upcoming' },
-        { name: 'Ala Moana Center', time: '2:35 PM', status: 'upcoming' }
-      ],
-      alerts: [
-        { type: 'info', message: 'Route running on time' },
-        { type: 'warning', message: 'Light traffic on Dillingham Blvd' }
-      ]
-    };
+    // Try to load route data from localStorage first
+    const storedRouteData = localStorage.getItem(`route_${routeId}`);
     
-    setRouteData(mockRouteData);
+    if (storedRouteData) {
+      try {
+        const parsedData = JSON.parse(storedRouteData);
+        const enhancedData = {
+          id: routeId,
+          name: `${parsedData.type.charAt(0).toUpperCase() + parsedData.type.slice(1)} Route`,
+          from: parsedData.origin || 'Origin',
+          to: parsedData.destination || 'Destination',
+          duration: `${parsedData.totalTime} minutes`,
+          cost: `$${parsedData.totalCost}`,
+          nextDeparture: '5 minutes',
+          type: parsedData.type,
+          co2Saved: parsedData.co2Saved,
+          steps: parsedData.steps || [],
+          stops: generateStopsFromSteps(parsedData.steps || []),
+          alerts: [
+            { type: 'info', message: 'Route selected successfully' },
+            { type: 'info', message: `Estimated CO₂ savings: ${parsedData.co2Saved} kg` }
+          ]
+        };
+        setRouteData(enhancedData);
+      } catch (error) {
+        console.error('Failed to parse stored route data:', error);
+        setRouteData(getFallbackRouteData());
+      }
+    } else {
+      // Fallback to mock data
+      setRouteData(getFallbackRouteData());
+    }
   }, [routeId]);
+
+  const generateStopsFromSteps = (steps: any[]) => {
+    if (!steps.length) return [];
+    
+    const now = new Date();
+    return steps.map((step, index) => {
+      const time = new Date(now.getTime() + (index * 8 * 60000)); // 8 minutes between stops
+      return {
+        name: step.instruction,
+        time: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        status: index === 0 ? 'current' : 'upcoming'
+      };
+    });
+  };
+
+  const getFallbackRouteData = () => ({
+    id: routeId,
+    name: `Route ${routeId}`,
+    from: 'Origin',
+    to: 'Destination',
+    duration: '30 minutes',
+    cost: '$2.75',
+    nextDeparture: '5 minutes',
+    stops: [
+      { name: 'Starting point', time: '2:15 PM', status: 'current' },
+      { name: 'Transit connection', time: '2:22 PM', status: 'upcoming' },
+      { name: 'Final destination', time: '2:35 PM', status: 'upcoming' }
+    ],
+    alerts: [
+      { type: 'info', message: 'Route information loaded' }
+    ]
+  });
 
   const startTracking = () => {
     setIsTracking(true);
