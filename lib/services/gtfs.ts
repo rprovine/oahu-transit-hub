@@ -101,12 +101,20 @@ export class GTFSService {
 
   async planTrip(origin: [number, number], destination: [number, number], time?: string): Promise<any> {
     try {
-      console.log(`Planning trip from [${origin[1]}, ${origin[0]}] to [${destination[1]}, ${destination[0]}]`);
+      console.log(`🚌 TRIP PLANNING: [${origin[1]}, ${origin[0]}] → [${destination[1]}, ${destination[0]}]`);
       
       const originLat = origin[1];
       const originLon = origin[0];
       const destLat = destination[1];
       const destLon = destination[0];
+      
+      // Debug: Check if these look like real Oahu coordinates
+      if (originLat < 21.2 || originLat > 21.7 || originLon > -157.6 || originLon < -158.3) {
+        console.log('⚠️  WARNING: Origin coordinates look suspicious - outside Oahu range');
+      }
+      if (destLat < 21.2 || destLat > 21.7 || destLon > -157.6 || destLon < -158.3) {
+        console.log('⚠️  WARNING: Destination coordinates look suspicious - outside Oahu range');
+      }
       
       // First try coordinate-based routing
       const coordinateRoutes = await this.generateRealOahuRoutes(originLat, originLon, destLat, destLon);
@@ -117,15 +125,21 @@ export class GTFSService {
         };
       }
       
-      // Use Claude API for intelligent routing
+      // Use Claude API for intelligent routing - prioritize for complex routes
       if (this.claudeApiKey) {
+        console.log('🤖 Trying Claude AI for intelligent routing...');
         const intelligentRoutes = await this.getClaudeRouting(originLat, originLon, destLat, destLon);
         if (intelligentRoutes && intelligentRoutes.length > 0) {
+          console.log('✅ Claude AI provided routing solution');
           return {
             plans: intelligentRoutes,
             success: true
           };
+        } else {
+          console.log('❌ Claude AI routing failed or returned no routes');
         }
+      } else {
+        console.log('❌ No Claude API key available');
       }
       
       // Final fallback with real routes
@@ -140,17 +154,23 @@ export class GTFSService {
     try {
       const prompt = `Plan a realistic transit route on Oahu, Hawaii from coordinates [${originLat}, ${originLon}] to [${destLat}, ${destLon}]. 
 
-Use these real Oahu bus routes:
+IMPORTANT ROUTING RULES:
+- Route 23 (Hawaii Kai-Sea Life Park) serves EAST Oahu (Diamond Head, Hawaii Kai) - NOT Kalihi/North Shore
+- For Kapolei to Kalihi: Use Route C to Downtown, then Route 1 to Kalihi
+- For West Oahu to anywhere: Route C (Country Express) goes to Downtown first
+- Ala Moana Center is NOT the best hub for Kalihi destinations (use Downtown instead)
+
+Real Oahu bus routes:
 - Route C (Country Express): Kapolei/West Oahu to Downtown (fast express)
+- Route 1: Kalihi-Palama-Downtown (serves Kalihi area)
 - Route 40: Ewa Beach to Ala Moana (express)
 - Route 42: Ewa Beach to Waikiki via Ala Moana
 - Route 20: Airport to Waikiki/Downtown
-- Route 23: Hawaii Kai via Diamond Head
+- Route 23: Hawaii Kai via Diamond Head (EAST Oahu only - not for Kalihi!)
 - Route 8: Waikiki to Ala Moana (frequent)
 - Routes 56/57: To Kailua/Lanikai beaches
 
-Key transit hubs: Ala Moana Center (main hub), Kapolei Transit Center, Downtown.
-HART Skyline: Only East Kapolei to Aloha Stadium currently operational.
+Key transit hubs: Downtown (for Kalihi), Ala Moana Center (for central/south), Kapolei Transit Center.
 
 Return ONLY a JSON array of route options with this exact format:
 [{
