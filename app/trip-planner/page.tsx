@@ -228,6 +228,12 @@ export default function TripPlanner() {
       const validRoutes: RouteOption[] = [];
       
       // Add transit routes from real API data
+      console.log('Transit data received:', { 
+        success: transitData.success, 
+        hasPlans: transitData.tripPlan?.plans?.length > 0,
+        planCount: transitData.tripPlan?.plans?.length 
+      });
+      
       if (transitData.success && transitData.tripPlan?.plans?.length > 0) {
         transitData.tripPlan.plans.forEach((plan: any, index: number) => {
           validRoutes.push({
@@ -251,6 +257,12 @@ export default function TripPlanner() {
         const walkingRoute = routingData.routes.walking[0];
         const walkingDistanceKm = walkingRoute.distance / 1000;
         const walkingTimeHours = walkingRoute.duration / 3600;
+        
+        console.log('Walking route check:', {
+          distance: walkingDistanceKm,
+          duration: walkingTimeHours * 60,
+          shouldInclude: walkingDistanceKm <= 3 && walkingTimeHours <= 0.75
+        });
         
         // Only suggest walking if under 3km and under 45 minutes
         if (walkingDistanceKm <= 3 && walkingTimeHours <= 0.75) {
