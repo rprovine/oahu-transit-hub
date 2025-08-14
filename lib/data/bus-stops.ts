@@ -9,14 +9,29 @@ export interface BusStop {
   distance?: number; // Distance from origin point (added during nearest stop search)
 }
 
-// Key bus stops in West Oahu/Kapolei area - based on real TheBus stops
-export const WEST_OAHU_BUS_STOPS: BusStop[] = [
-  // Farrington Highway stops near residential areas
+// Import comprehensive database
+import { getAllOahuStops } from './bus-stops-database';
+
+// Use the comprehensive island-wide database
+export const OAHU_BUS_STOPS: BusStop[] = getAllOahuStops();
+
+// Legacy stops (kept for compatibility)
+const LEGACY_STOPS: BusStop[] = [
+  // Kapolei residential area - Palala Street vicinity
   {
     stop_id: 'KAP001',
     stop_name: 'Farrington Hwy + Palala St',
-    stop_lat: 21.3290,
-    stop_lon: -158.0855,
+    stop_lat: 21.3285,
+    stop_lon: -158.0860,
+    routes: ['C', '401'],
+    location_type: 'stop',
+    wheelchair_accessible: true
+  },
+  {
+    stop_id: 'KAP001B',
+    stop_name: 'Palala St + Farrington Hwy (Eastbound)',
+    stop_lat: 21.3288,
+    stop_lon: -158.0858,
     routes: ['C', '401'],
     location_type: 'stop',
     wheelchair_accessible: true
@@ -133,7 +148,7 @@ export function findNearestStops(
   lon: number, 
   maxWalkingDistanceKm: number = 0.8 // 800 meters default
 ): BusStop[] {
-  const nearbyStops = WEST_OAHU_BUS_STOPS
+  const nearbyStops = OAHU_BUS_STOPS
     .map(stop => ({
       ...stop,
       distance: calculateDistance(lat, lon, stop.stop_lat, stop.stop_lon)
@@ -146,7 +161,7 @@ export function findNearestStops(
 
 // Find stops that serve specific routes
 export function getStopsForRoute(routeId: string): BusStop[] {
-  return WEST_OAHU_BUS_STOPS.filter(stop => 
+  return OAHU_BUS_STOPS.filter(stop => 
     stop.routes.includes(routeId)
   );
 }

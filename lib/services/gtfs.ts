@@ -4,7 +4,7 @@ import {
   getWalkingTime, 
   calculateDistance, 
   BusStop as BusStopData, 
-  WEST_OAHU_BUS_STOPS 
+  OAHU_BUS_STOPS 
 } from '@/lib/data/bus-stops';
 
 interface BusRoute {
@@ -467,7 +467,7 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
     const transferRoutes: any[] = [];
     
     // Look for routes that connect via major hubs
-    const majorHubs = WEST_OAHU_BUS_STOPS.filter(stop => 
+    const majorHubs = OAHU_BUS_STOPS.filter(stop => 
       stop.location_type === 'station' || stop.routes.length >= 3
     );
     

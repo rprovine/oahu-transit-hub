@@ -968,7 +968,15 @@ export default function TripPlanner() {
                 {popularDestinations.map((dest, idx) => (
                   <button
                     key={idx}
-                    onClick={() => setDestination(dest.name)}
+                    onClick={() => {
+                      setDestination(dest.name);
+                      // Automatically plan trip if origin is set
+                      if (origin && origin.trim() !== '') {
+                        setTimeout(() => {
+                          handlePlanTrip();
+                        }, 100);
+                      }
+                    }}
                     className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-colors flex items-center gap-2"
                   >
                     <span>{dest.icon}</span>
