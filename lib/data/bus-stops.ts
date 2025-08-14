@@ -6,6 +6,7 @@ export interface BusStop {
   routes: string[];
   location_type: 'stop' | 'station';
   wheelchair_accessible: boolean;
+  distance?: number; // Distance from origin point (added during nearest stop search)
 }
 
 // Key bus stops in West Oahu/Kapolei area - based on real TheBus stops

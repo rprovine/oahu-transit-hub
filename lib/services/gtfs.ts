@@ -1,5 +1,11 @@
 import { DEFAULT_TRIP_FARE } from '@/lib/constants/transit-fares';
-import { findNearestStops, getWalkingTime, calculateDistance, BusStop, WEST_OAHU_BUS_STOPS } from '@/lib/data/bus-stops';
+import { 
+  findNearestStops, 
+  getWalkingTime, 
+  calculateDistance, 
+  BusStop as BusStopData, 
+  WEST_OAHU_BUS_STOPS 
+} from '@/lib/data/bus-stops';
 
 interface BusRoute {
   route_id: string;
@@ -361,7 +367,7 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
     return [];
   }
 
-  private findRouteConnections(originStops: BusStop[], destStops: BusStop[], originLat: number, originLon: number, destLat: number, destLon: number): any[] {
+  private findRouteConnections(originStops: BusStopData[], destStops: BusStopData[], originLat: number, originLon: number, destLat: number, destLon: number): any[] {
     const routes: any[] = [];
     
     // Check for direct routes (no transfers)
@@ -422,7 +428,7 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
     return routes.sort((a, b) => a.duration - b.duration).slice(0, 3); // Return top 3 options
   }
 
-  private estimateTransitTime(routeId: string, originStop: BusStop, destStop: BusStop): number {
+  private estimateTransitTime(routeId: string, originStop: BusStopData, destStop: BusStopData): number {
     const distance = calculateDistance(originStop.stop_lat, originStop.stop_lon, destStop.stop_lat, destStop.stop_lon);
     
     // Different average speeds for different route types
@@ -450,14 +456,14 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
     return routeNames[routeId] || `Route ${routeId}`;
   }
 
-  private getRouteHeadsign(routeId: string, destStop: BusStop): string {
+  private getRouteHeadsign(routeId: string, destStop: BusStopData): string {
     if (routeId === 'C') {
       return destStop.stop_name.includes('Downtown') || destStop.stop_lat > 21.31 ? 'Downtown Honolulu' : 'Kapolei';
     }
     return `To ${destStop.stop_name}`;
   }
 
-  private findTransferRoutes(originStops: BusStop[], destStops: BusStop[], originLat: number, originLon: number, destLat: number, destLon: number): any[] {
+  private findTransferRoutes(originStops: BusStopData[], destStops: BusStopData[], originLat: number, originLon: number, destLat: number, destLon: number): any[] {
     const transferRoutes: any[] = [];
     
     // Look for routes that connect via major hubs
