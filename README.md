@@ -18,22 +18,27 @@ A comprehensive public transit application for Oahu, Hawaii, featuring real-time
 
 ### Core Functionality
 - **🏠 Dual User Experience**: Tailored interfaces for Kama'āina (locals) and Malihini (tourists)
-- **🚌 Real-Time Transit Tracking**: Live bus and rail location updates
+- **🚌 Real-Time Transit Tracking**: Live bus and rail location updates via GTFS-RT APIs
 - **🌦️ Weather-Aware Routing**: Routes adjust based on current weather conditions
 - **🤖 AI Trip Assistant**: Natural language trip planning powered by Claude AI
 - **🔍 Address Autocomplete**: Smart location suggestions as you type
 - **⚡ Quick Access**: Home/Work shortcuts and saved routes
+- **⚙️ User Settings**: Save home, work, and favorite locations with notification preferences
 - **📱 Progressive Web App**: Offline support and app-like experience
-- **🗺️ Multi-Modal Transportation**: Bus, rail, walking, and biking directions
+- **🗺️ Multi-Modal Transportation**: TheBus, HART Skyline Rail, walking, and biking directions
+- **📍 Real-Time Data Only**: No mock data - all information comes from live transit APIs
+- **🎯 Smart Route Classification**: Mathematically accurate fastest, cheapest, and greenest route identification
 
 ### Integrated APIs
-1. **StormGlass Marine API**: Ocean conditions for beach routes
-2. **OpenWeather API**: Real-time weather data
-3. **Mapbox**: Interactive mapping and navigation
-4. **Claude AI (Anthropic)**: Intelligent trip planning
-5. **HubSpot CRM**: Customer lifecycle management
-6. **GTFS Real-Time**: Live transit feed data
-7. **Supabase**: Backend infrastructure and authentication
+1. **TheBus GTFS-RT API**: Real-time Honolulu bus data and trip planning
+2. **HART Skyline GTFS-RT API**: Live rail system data and schedules
+3. **StormGlass Marine API**: Ocean conditions for beach routes
+4. **OpenWeather API**: Real-time weather data
+5. **Mapbox**: Interactive mapping, geocoding, and navigation
+6. **Claude AI (Anthropic)**: Intelligent trip planning and route optimization
+7. **HubSpot CRM**: Customer lifecycle management and analytics
+8. **Google Places API**: Address validation and geocoding fallback
+9. **Supabase**: Backend infrastructure and authentication
 
 ### Security Features
 - **Rate Limiting**: Protection against API abuse using Upstash Redis
@@ -92,6 +97,22 @@ A comprehensive public transit application for Oahu, Hawaii, featuring real-time
 
    Open [http://localhost:3001](http://localhost:3001) to view the application.
 
+## 🚌 Transit API Configuration
+
+### TheBus API Setup
+To access real-time Honolulu bus data:
+```env
+THEBUS_API_KEY=your_thebus_api_key
+```
+
+### HART Skyline API Setup
+For rail system integration:
+```env
+HART_API_KEY=your_hart_api_key
+```
+
+**Note**: The application is designed to gracefully handle API failures by returning empty arrays instead of mock data, ensuring users never see fake transit information.
+
 ## 🔐 Security Configuration
 
 ### Rate Limiting Setup
@@ -138,6 +159,8 @@ NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=your_mapbox_access_token
 ANTHROPIC_API_KEY=your_anthropic_api_key
 HUBSPOT_ACCESS_TOKEN=your_hubspot_access_token
 GOOGLE_PLACES_API_KEY=your_google_places_api_key
+THEBUS_API_KEY=your_thebus_api_key
+HART_API_KEY=your_hart_api_key
 ```
 
 **Status:** ✅ Live and functional with all integrations active
