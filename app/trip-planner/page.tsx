@@ -446,13 +446,18 @@ export default function TripPlanner() {
       
       // After checking GTFS service, only use honest results - no more hardcoded mock data
       // All transit data should come from the GTFS service above 
-          (origin.toLowerCase().includes('waikiki') && destination.toLowerCase().includes('diamond')) ||
-          (origin.toLowerCase().includes('waikiki') && destination.toLowerCase().includes('head'));
+      
+      // Note: There is still hardcoded mock data below that should be removed
+      // Check for specific tourist routes (this should be replaced with real API integration)
+      const isWaikikiToDiamondHead = 
+        (origin.toLowerCase().includes('waikiki') && destination.toLowerCase().includes('diamond')) ||
+        (origin.toLowerCase().includes('waikiki') && destination.toLowerCase().includes('head'));
         
-        const isDiamondHeadToWaikiki = 
-          (origin.toLowerCase().includes('diamond') && destination.toLowerCase().includes('waikiki')) ||
-          (origin.toLowerCase().includes('head') && destination.toLowerCase().includes('waikiki'));
-        
+      const isDiamondHeadToWaikiki = 
+        (origin.toLowerCase().includes('diamond') && destination.toLowerCase().includes('waikiki')) ||
+        (origin.toLowerCase().includes('head') && destination.toLowerCase().includes('waikiki'));
+      
+      if (validRoutes.length === 0) { // Only add mock routes if GTFS returned nothing
         if (isWaikikiToDiamondHead) {
           console.log('Adding Waikiki to Diamond Head routes');
           // Route 23 or 24 - Direct bus routes
