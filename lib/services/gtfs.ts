@@ -432,7 +432,8 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
                 from: { lat: originStop.stop_lat, lon: originStop.stop_lon, name: originStop.stop_name },
                 to: { lat: destStop.stop_lat, lon: destStop.stop_lon, name: destStop.stop_name },
                 duration: transitTime * 60,
-                headsign: route.route_long_name || `To ${destStop.stop_name}`
+                headsign: route.route_long_name || `To ${destStop.stop_name}`,
+                instruction: `Take Route ${route.route_short_name || route.route_id} to ${destStop.stop_name}`
               },
               {
                 mode: 'WALK',

@@ -398,8 +398,10 @@ export default function TripPlanner() {
                     → Destination (${transitData.tripPlan.coordinates.destination.lat}, ${transitData.tripPlan.coordinates.destination.lon})`
         }]);
       } else if (transitData.success && transitData.tripPlan?.plans?.length > 0) {
-        console.log('Processing transit plans:', transitData.tripPlan.plans);
+        console.log('✅ Processing transit plans:', transitData.tripPlan.plans.length, 'plans found');
+        console.log('Transit plans details:', transitData.tripPlan.plans);
         transitData.tripPlan.plans.forEach((plan: any, index: number) => {
+          console.log(`Processing plan ${index}:`, { mode: plan.mode, duration: plan.duration, legs: plan.legs?.length });
           // Skip rideshare fallbacks - they should be handled separately
           if (plan.mode === 'RIDESHARE') {
             console.log('Skipping rideshare fallback plan');
@@ -416,17 +418,19 @@ export default function TripPlanner() {
             co2Saved: Math.round((plan.walking_distance || plan.distance || 5000) * 0.0008 * 100) / 100, // Calculate based on actual distance
             type: 'fastest' as const, // Will be reassigned based on actual comparison
             steps: plan.legs.map((leg: any) => {
-              // Build proper instruction text
+              // Use API instruction if available, otherwise build one
               let instruction = '';
-              if (leg.mode === 'WALK') {
+              if (leg.instruction) {
+                // Use the instruction from the API as-is
+                instruction = leg.instruction;
+              } else if (leg.mode === 'WALK') {
                 const walkMin = Math.round((leg.duration || 300) / 60);
-                const distance = leg.distance ? `${(leg.distance / 1000).toFixed(1)} km` : '';
-                instruction = leg.instruction || `Walk ${walkMin} min${distance ? ' (' + distance + ')' : ''} to ${leg.to?.name || 'destination'}`;
+                instruction = `Walk ${walkMin} min to ${leg.to?.name || 'destination'}`;
               } else if (leg.mode === 'TRANSIT') {
                 const routeName = leg.routeName || leg.route || 'Bus';
                 instruction = `Take ${routeName} to ${leg.to?.name || 'destination'}`;
               } else {
-                instruction = leg.instruction || `${leg.mode} to ${leg.to?.name || 'destination'}`;
+                instruction = `${leg.mode} to ${leg.to?.name || 'destination'}`;
               }
               
               return {
@@ -438,7 +442,11 @@ export default function TripPlanner() {
             })
           };
           
-          console.log('Created route:', route);
+          console.log('Created route:', {
+            id: route.id,
+            totalTime: route.totalTime,
+            steps: route.steps.map(s => ({ mode: s.mode, instruction: s.instruction }))
+          });
           validRoutes.push(route);
         });
       }
@@ -664,13 +672,21 @@ export default function TripPlanner() {
         processedRoutes = filteredRoutes;
       }
       
+      // Log what we have before processing
+      console.log('📊 Route processing summary:', {
+        validRoutes: validRoutes.length,
+        afterFiltering: processedRoutes.length
+      });
+      
       // If no viable routes found, show message instead of fake data
       if (processedRoutes.length === 0) {
         // Don't show any routes rather than fake data
-        console.log('No viable transit routes found for this trip');
+        console.log('❌ No viable transit routes found for this trip');
+        console.log('validRoutes was:', validRoutes);
       }
       
       // FINAL CHECK: Remove ANY route with walking over 3km
+      console.log('Before final filter, processedRoutes:', processedRoutes.length);
       const finalRoutes = processedRoutes.filter(route => {
         // Check every step for long walks
         const hasLongWalk = route.steps.some(step => {
@@ -692,8 +708,12 @@ export default function TripPlanner() {
           }
           return false;
         });
+        if (hasLongWalk) {
+          console.log('Filtering out route:', route.id, 'due to long walk');
+        }
         return !hasLongWalk;
       });
+      console.log('After final filter, finalRoutes:', finalRoutes.length);
       
       // If we blocked all routes due to long walks, show bus routes instead
       if (finalRoutes.length === 0 && processedRoutes.length > 0) {
