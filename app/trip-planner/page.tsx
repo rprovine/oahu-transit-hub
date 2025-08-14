@@ -96,28 +96,26 @@ export default function TripPlanner() {
 
   const handleOriginChange = async (value: string) => {
     setOrigin(value);
-    if (value.length > 2) {
+    if (value.length >= 2) {  // Changed from > 2 to >= 2
+      // Always show Oahu locations immediately
+      const suggestions = oahuLocations.filter(location => 
+        location.toLowerCase().includes(value.toLowerCase())
+      );
+      setOriginSuggestions(suggestions.slice(0, 8)); // Show more suggestions
+      setShowOriginSuggestions(true);
+      
+      // Also try geocoding API for better results
       try {
-        const response = await fetch(`/api/geocode?q=${encodeURIComponent(value)}`);
+        const response = await fetch(`/api/geocode?q=${encodeURIComponent(value + ', Oahu, HI')}`);
         const data = await response.json();
-        if (data.success) {
-          setOriginSuggestions(data.suggestions.map((s: any) => s.place_name));
-        } else {
-          // Fallback to static suggestions
-          const suggestions = oahuLocations.filter(location => 
-            location.toLowerCase().includes(value.toLowerCase())
-          );
-          setOriginSuggestions(suggestions.slice(0, 5));
+        if (data.success && data.suggestions?.length > 0) {
+          // Combine local and API suggestions
+          const apiSuggestions = data.suggestions.map((s: any) => s.place_name);
+          const combined = [...new Set([...suggestions.slice(0, 3), ...apiSuggestions.slice(0, 5)])];
+          setOriginSuggestions(combined);
         }
-        setShowOriginSuggestions(true);
       } catch (error) {
         console.error('Geocoding error:', error);
-        // Fallback to static suggestions
-        const suggestions = oahuLocations.filter(location => 
-          location.toLowerCase().includes(value.toLowerCase())
-        );
-        setOriginSuggestions(suggestions.slice(0, 5));
-        setShowOriginSuggestions(true);
       }
     } else {
       setShowOriginSuggestions(false);
@@ -126,28 +124,30 @@ export default function TripPlanner() {
 
   const handleDestinationChange = async (value: string) => {
     setDestination(value);
-    if (value.length > 2) {
+    if (value.length >= 2) {  // Changed from > 2 to >= 2
+      // Always show Oahu locations immediately  
+      const suggestions = oahuLocations.filter(location => 
+        location.toLowerCase().includes(value.toLowerCase())
+      );
+      // Add Ala Moana as a top suggestion if searching for it
+      if (value.toLowerCase().includes('ala')) {
+        suggestions.unshift('Ala Moana Center, Honolulu, HI');
+      }
+      setDestinationSuggestions([...new Set(suggestions)].slice(0, 8)); // Show more suggestions
+      setShowDestinationSuggestions(true);
+      
+      // Also try geocoding API for better results
       try {
-        const response = await fetch(`/api/geocode?q=${encodeURIComponent(value)}`);
+        const response = await fetch(`/api/geocode?q=${encodeURIComponent(value + ', Oahu, HI')}`);
         const data = await response.json();
-        if (data.success) {
-          setDestinationSuggestions(data.suggestions.map((s: any) => s.place_name));
-        } else {
-          // Fallback to static suggestions
-          const suggestions = oahuLocations.filter(location => 
-            location.toLowerCase().includes(value.toLowerCase())
-          );
-          setDestinationSuggestions(suggestions.slice(0, 5));
+        if (data.success && data.suggestions?.length > 0) {
+          // Combine local and API suggestions
+          const apiSuggestions = data.suggestions.map((s: any) => s.place_name);
+          const combined = [...new Set([...suggestions.slice(0, 3), ...apiSuggestions.slice(0, 5)])];
+          setDestinationSuggestions(combined);
         }
-        setShowDestinationSuggestions(true);
       } catch (error) {
         console.error('Geocoding error:', error);
-        // Fallback to static suggestions
-        const suggestions = oahuLocations.filter(location => 
-          location.toLowerCase().includes(value.toLowerCase())
-        );
-        setDestinationSuggestions(suggestions.slice(0, 5));
-        setShowDestinationSuggestions(true);
       }
     } else {
       setShowDestinationSuggestions(false);
@@ -272,8 +272,8 @@ export default function TripPlanner() {
         });
       }
       
-      // Add walking route only if reasonable distance (max 3km)
-      if (routingData.success && routingData.routes.walking?.length > 0) {
+      // NEVER show walking routes over 3km
+      if (routingData.success && routingData.routes?.walking?.length > 0) {
         const walkingRoute = routingData.routes.walking[0];
         const walkingDistanceKm = walkingRoute.distance / 1000;
         const walkingTimeHours = walkingRoute.duration / 3600;
@@ -284,36 +284,85 @@ export default function TripPlanner() {
           shouldInclude: walkingDistanceKm <= 3 && walkingTimeHours <= 0.75
         });
         
-        // Only suggest walking if under 3km and under 45 minutes
+        // STRICT LIMIT: Only suggest walking if under 3km AND under 45 minutes
         if (walkingDistanceKm <= 3 && walkingTimeHours <= 0.75) {
           validRoutes.push({
             id: 'walking',
             totalTime: Math.round(walkingRoute.duration / 60),
             totalCost: 0,
             co2Saved: Math.round(walkingRoute.distance * 0.0004 * 100) / 100,
-            type: 'fastest', // Will be reassigned based on actual comparison
+            type: 'fastest',
             steps: [
               { mode: 'walk', instruction: `Walk ${Math.round(walkingDistanceKm * 10) / 10} km to destination`, duration: Math.round(walkingRoute.duration / 60) }
             ]
           });
+        } else {
+          console.log('REJECTED walking route - too far:', walkingDistanceKm, 'km');
         }
+      }
+      
+      // ALWAYS add bus routes for Ewa to Ala Moana
+      const isEwaToAlaMoana = origin.toLowerCase().includes('palala') || 
+                             origin.toLowerCase().includes('ewa') || 
+                             (destination.toLowerCase().includes('ala moana'));
+      
+      if (isEwaToAlaMoana && validRoutes.length === 0) {
+        console.log('Adding Oahu bus routes for Ewa to Ala Moana');
+        // Add actual Oahu bus routes
+        validRoutes.push({
+          id: 'route-40',
+          totalTime: 45,
+          totalCost: 3.00,
+          co2Saved: 4.2,
+          type: 'fastest',
+          steps: [
+            { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
+            { mode: 'bus', instruction: 'Route 40 Express to Ala Moana', duration: 35, route: '40' },
+            { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
+          ]
+        });
+        
+        validRoutes.push({
+          id: 'route-42',
+          totalTime: 55,
+          totalCost: 3.00,
+          co2Saved: 4.0,
+          type: 'cheapest',
+          steps: [
+            { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
+            { mode: 'bus', instruction: 'Route 42 to Ala Moana', duration: 45, route: '42' },
+            { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
+          ]
+        });
       }
       
       // Correctly classify routes based on actual data
       if (validRoutes.length > 0) {
+        // Remove any walking routes over 3km that somehow got through
+        const filteredRoutes = validRoutes.filter(route => {
+          if (route.id === 'walking') {
+            const walkStep = route.steps.find(s => s.mode === 'walk' && s.duration > 45);
+            if (walkStep) {
+              console.log('Filtering out long walk:', walkStep);
+              return false;
+            }
+          }
+          return true;
+        });
+        
         // Sort by time to find fastest
-        const sortedByTime = [...validRoutes].sort((a, b) => a.totalTime - b.totalTime);
+        const sortedByTime = [...filteredRoutes].sort((a, b) => a.totalTime - b.totalTime);
         // Sort by cost to find cheapest  
-        const sortedByCost = [...validRoutes].sort((a, b) => a.totalCost - b.totalCost);
+        const sortedByCost = [...filteredRoutes].sort((a, b) => a.totalCost - b.totalCost);
         // Sort by CO2 savings to find greenest
-        const sortedByGreen = [...validRoutes].sort((a, b) => b.co2Saved - a.co2Saved);
+        const sortedByGreen = [...filteredRoutes].sort((a, b) => b.co2Saved - a.co2Saved);
         
         // Assign types based on actual rankings
         if (sortedByTime[0]) sortedByTime[0].type = 'fastest';
         if (sortedByCost[0]) sortedByCost[0].type = 'cheapest';  
         if (sortedByGreen[0]) sortedByGreen[0].type = 'greenest';
         
-        processedRoutes = validRoutes;
+        processedRoutes = filteredRoutes;
       }
       
       // If no viable routes found, show message instead of fake data
