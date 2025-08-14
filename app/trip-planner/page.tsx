@@ -222,7 +222,7 @@ export default function TripPlanner() {
       ]);
       
       // Combine AI insights with real routing data
-      const processedRoutes: RouteOption[] = [];
+      let processedRoutes: RouteOption[] = [];
       
       // Only add routes if we have real API data
       const validRoutes: RouteOption[] = [];
@@ -280,7 +280,7 @@ export default function TripPlanner() {
       
       // If no routes found, use fallback
       if (processedRoutes.length === 0) {
-        processedRoutes.push({
+        processedRoutes = [{
           id: 'fallback',
           totalTime: 30,
           totalCost: 2.75,
@@ -291,7 +291,7 @@ export default function TripPlanner() {
             { mode: 'bus', instruction: 'Take connecting bus routes', duration: 20 },
             { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
           ]
-        });
+        }];
       }
       
       setRoutes(processedRoutes);
