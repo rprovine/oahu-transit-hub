@@ -165,10 +165,42 @@ export default function TouristDashboard() {
     }
   };
   
-  const getDirections = async (destinationName: string) => {
+  const getDirections = async (destinationName: string, useCurrentLocation: boolean = false) => {
     try {
-      // Get user's current location (mock for now)
-      const origin = 'Waikiki Beach, Honolulu, HI'; // Would use geolocation
+      let origin = '';
+      
+      if (useCurrentLocation && navigator.geolocation) {
+        // Try to get actual user location
+        try {
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              timeout: 5000,
+              enableHighAccuracy: true
+            });
+          });
+          
+          // Reverse geocode the coordinates to get an address
+          const response = await fetch(`/api/geocode?lat=${position.coords.latitude}&lon=${position.coords.longitude}&reverse=true`);
+          const data = await response.json();
+          if (data.success && data.address) {
+            origin = data.address;
+          }
+        } catch (geoError) {
+          console.log('Could not get location, using default');
+        }
+      }
+      
+      // If geolocation failed or not requested, use saved location or common tourist area
+      if (!origin) {
+        const savedSettings = localStorage.getItem('oahu_transit_settings');
+        if (savedSettings) {
+          const settings = JSON.parse(savedSettings);
+          const currentLocation = settings.locations?.find((loc: any) => loc.type === 'current');
+          origin = currentLocation?.address || 'Waikiki Beach, Honolulu, HI';
+        } else {
+          origin = 'Waikiki Beach, Honolulu, HI'; // Default for tourists
+        }
+      }
       
       // Track direction request in CRM
       await fetch('/api/crm', {
@@ -181,7 +213,8 @@ export default function TouristDashboard() {
           details: {
             origin,
             destination: destinationName,
-            user_type: 'tourist'
+            user_type: 'tourist',
+            used_geolocation: useCurrentLocation
           }
         })
       });

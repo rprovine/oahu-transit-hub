@@ -60,12 +60,6 @@ export default function Home() {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                <span className="text-sm text-gray-600">
-                  <span className="font-bold">{liveStats.activeRoutes}</span> Active Buses
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
                 <span className="text-sm text-gray-600">
                   <span className="font-bold">{liveStats.weatherTemp}°F</span> in Honolulu

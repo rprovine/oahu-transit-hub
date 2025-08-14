@@ -102,12 +102,6 @@ export default function RealtimeStatusBar() {
           </div>
         </div>
 
-        <div className="flex items-center justify-between">
-          <span className="text-gray-600">Live Vehicles</span>
-          <span className="font-medium text-gray-800">
-            {status.activeVehicles > 0 ? `${status.activeVehicles} active` : 'No data'}
-          </span>
-        </div>
 
         {status.serviceAlerts > 0 && (
           <div className="flex items-center justify-between">
