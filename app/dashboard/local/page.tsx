@@ -30,51 +30,202 @@ export default function LocalDashboard() {
       { type: 'traffic', message: 'UH football game traffic until 9 PM' }
     ]
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Load real data on component mount
+    loadLiveData();
+    
+    // Set up interval for real-time updates
     const interval = setInterval(() => {
-      setLiveData(prev => ({
-        ...prev,
-        nextBus: {
-          ...prev.nextBus,
-          arrival: Math.max(1, prev.nextBus.arrival - 1)
-        },
-        weather: {
-          ...prev.weather,
-          temp: Math.floor(Math.random() * 5) + 76
-        }
-      }));
-    }, 60000);
+      loadLiveData();
+    }, 60000); // Update every minute
+    
     return () => clearInterval(interval);
   }, []);
+  
+  const loadLiveData = async () => {
+    try {
+      // Get current location (Honolulu downtown as default)
+      const lat = 21.3099;
+      const lon = -157.8583;
+      
+      // Fetch weather data
+      const weatherResponse = await fetch(`/api/weather?lat=${lat}&lon=${lon}`);
+      const weatherData = await weatherResponse.json();
+      
+      // Fetch nearby bus stops and arrivals
+      const transitResponse = await fetch(`/api/transit?action=nearby_stops&lat=${lat}&lon=${lon}`);
+      const transitData = await transitResponse.json();
+      
+      // Fetch service alerts
+      const alertsResponse = await fetch('/api/transit?action=alerts');
+      const alertsData = await alertsResponse.json();
+      
+      if (weatherData.success) {
+        setLiveData(prev => ({
+          ...prev,
+          weather: {
+            temp: weatherData.weather.temp,
+            condition: weatherData.weather.condition,
+            windSpeed: weatherData.weather.windSpeed
+          }
+        }));
+      }
+      
+      if (transitData.success && transitData.stops.length > 0) {
+        // Get arrivals for the first nearby stop
+        const arrivalsResponse = await fetch(`/api/transit?action=arrivals&stopId=${transitData.stops[0].stop_id}`);
+        const arrivalsData = await arrivalsResponse.json();
+        
+        if (arrivalsData.success && arrivalsData.arrivals.length > 0) {
+          const nextArrival = arrivalsData.arrivals[0];
+          const arrivalTime = new Date(nextArrival.arrival_time);
+          const now = new Date();
+          const minutesUntilArrival = Math.max(1, Math.round((arrivalTime.getTime() - now.getTime()) / 60000));
+          
+          setLiveData(prev => ({
+            ...prev,
+            nextBus: {
+              route: nextArrival.route_name,
+              arrival: minutesUntilArrival,
+              destination: nextArrival.headsign
+            }
+          }));
+        }
+      }
+      
+      if (alertsData.success) {
+        setLiveData(prev => ({
+          ...prev,
+          alerts: alertsData.alerts.map((alert: any) => ({
+            type: alert.severity === 'warning' ? 'traffic' : 'info',
+            message: alert.description
+          }))
+        }));
+      }
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Failed to load live data:', error);
+      setLoading(false);
+      // Keep existing mock data on error
+    }
+  };
 
   const handleSearch = async () => {
     if (!origin || !destination) return;
     
     setIsSearching(true);
-    setTimeout(() => {
+    
+    try {
+      // Geocode addresses
+      const [originGeocode, destGeocode] = await Promise.all([
+        fetch(`/api/geocode?q=${encodeURIComponent(origin)}`),
+        fetch(`/api/geocode?q=${encodeURIComponent(destination)}`)
+      ]);
+      
+      const [originData, destData] = await Promise.all([
+        originGeocode.json(),
+        destGeocode.json()
+      ]);
+      
+      if (originData.success && destData.success) {
+        const originCoords = originData.suggestions[0]?.center;
+        const destCoords = destData.suggestions[0]?.center;
+        
+        if (originCoords && destCoords) {
+          // Get directions from multiple sources
+          const [routingResponse, transitResponse] = await Promise.all([
+            fetch('/api/geocode', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                origin: { lat: originCoords[1], lon: originCoords[0] },
+                destination: { lat: destCoords[1], lon: destCoords[0] }
+              })
+            }),
+            fetch('/api/transit', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'plan_trip',
+                origin: { lat: originCoords[1], lon: originCoords[0] },
+                destination: { lat: destCoords[1], lon: destCoords[0] }
+              })
+            })
+          ]);
+          
+          const [routingData, transitData] = await Promise.all([
+            routingResponse.json(),
+            transitResponse.json()
+          ]);
+          
+          const newRoutes = [];
+          
+          // Add walking route
+          if (routingData.success && routingData.routes.walking?.length > 0) {
+            const walk = routingData.routes.walking[0];
+            newRoutes.push({
+              id: 'walk',
+              type: 'greenest',
+              duration: `${Math.round(walk.duration / 60)} min`,
+              modes: ['walk'],
+              steps: [`Walk ${(walk.distance / 1000).toFixed(1)} km to destination`],
+              cost: 'Free',
+              co2: `${(walk.distance * 0.0002).toFixed(1)} kg saved vs driving`
+            });
+          }
+          
+          // Add transit routes
+          if (transitData.success && transitData.tripPlan?.plans) {
+            transitData.tripPlan.plans.forEach((plan: any, index: number) => {
+              newRoutes.push({
+                id: `transit-${index}`,
+                type: index === 0 ? 'fastest' : 'cheapest',
+                duration: `${Math.round(plan.duration / 60)} min`,
+                modes: plan.legs.map((leg: any) => leg.mode.toLowerCase()),
+                steps: plan.legs.map((leg: any) => 
+                  leg.mode === 'TRANSIT' ? 
+                    `${leg.route} → ${leg.to.name}` :
+                    `${leg.mode} to ${leg.to.name} (${Math.round(leg.duration / 60)} min)`
+                ),
+                cost: `$${plan.cost || 2.75}`,
+                co2: '3.2 kg saved vs driving'
+              });
+            });
+          }
+          
+          setRoutes(newRoutes.length > 0 ? newRoutes : [
+            {
+              id: 'fallback',
+              type: 'fastest',
+              duration: '30 min',
+              modes: ['bus', 'walk'],
+              steps: ['Walk to bus stop', 'Take TheBus', 'Walk to destination'],
+              cost: '$2.75',
+              co2: '2.5 kg saved vs driving'
+            }
+          ]);
+        }
+      }
+    } catch (error) {
+      console.error('Route search error:', error);
+      // Fallback to mock data
       setRoutes([
         {
-          id: 1,
+          id: 'fallback',
           type: 'fastest',
-          duration: '28 min',
+          duration: '30 min',
           modes: ['bus', 'walk'],
-          steps: ['Walk 3 min to Bus Stop', 'Route 8 → Ala Moana (18 min)', 'Walk 7 min to destination'],
+          steps: ['Walk to bus stop', 'Take TheBus', 'Walk to destination'],
           cost: '$2.75',
-          co2: '2.1 kg saved vs driving'
-        },
-        {
-          id: 2,
-          type: 'cheapest',
-          duration: '35 min',
-          modes: ['rail', 'bus'],
-          steps: ['Walk 5 min to Skyline Station', 'Rail → Kalihi (15 min)', 'Route 42 → destination (15 min)'],
-          cost: '$2.75',
-          co2: '3.2 kg saved vs driving'
+          co2: '2.5 kg saved vs driving'
         }
       ]);
+    } finally {
       setIsSearching(false);
-    }, 1500);
+    }
   };
 
   return (

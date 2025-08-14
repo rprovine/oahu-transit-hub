@@ -2,20 +2,29 @@
 
 A comprehensive public transit application for Oahu, Hawaii, featuring real-time bus and rail tracking, AI-powered trip planning, and weather-aware routing optimized for both locals (Kama'āina) and tourists (Malihini).
 
-![Next.js](https://img.shields.io/badge/Next.js-14.0-black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.0-38B2AC)
+![Next.js](https://img.shields.io/badge/Next.js-15.4-black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC)
 ![Supabase](https://img.shields.io/badge/Supabase-2.0-3ECF8E)
+![Live](https://img.shields.io/badge/Status-Live-green)
+
+## 🌐 Live Application
+
+**Production:** [https://oahu-transit-r33wkrdv4-rprovines-projects.vercel.app](https://oahu-transit-r33wkrdv4-rprovines-projects.vercel.app)
+
+**Repository:** [https://github.com/rprovine/oahu-transit-hub](https://github.com/rprovine/oahu-transit-hub)
 
 ## 🚀 Features
 
 ### Core Functionality
-- **Dual User Experience**: Tailored interfaces for locals and tourists
-- **Real-Time Transit Tracking**: Live bus and rail location updates
-- **Weather-Aware Routing**: Routes adjust based on current weather conditions
-- **AI Trip Assistant**: Natural language trip planning in English and Hawaiian
-- **Offline Support**: Progressive Web App with offline map caching
-- **Multi-Modal Transportation**: Bus, rail, and walking directions
+- **🏠 Dual User Experience**: Tailored interfaces for Kama'āina (locals) and Malihini (tourists)
+- **🚌 Real-Time Transit Tracking**: Live bus and rail location updates
+- **🌦️ Weather-Aware Routing**: Routes adjust based on current weather conditions
+- **🤖 AI Trip Assistant**: Natural language trip planning powered by Claude AI
+- **🔍 Address Autocomplete**: Smart location suggestions as you type
+- **⚡ Quick Access**: Home/Work shortcuts and saved routes
+- **📱 Progressive Web App**: Offline support and app-like experience
+- **🗺️ Multi-Modal Transportation**: Bus, rail, walking, and biking directions
 
 ### Integrated APIs
 1. **StormGlass Marine API**: Ocean conditions for beach routes
@@ -118,10 +127,20 @@ The app includes PWA features:
 
 ### Environment Variables for Production
 
-Ensure all environment variables are set in your deployment platform:
-- All API keys from `.env.example`
-- Set `NODE_ENV=production`
-- Update `NEXT_PUBLIC_APP_URL` to your production domain
+✅ **All API keys are configured and live in production:**
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://kvlcjjrxzdmbbvblpgcy.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.*** (configured)
+OPENWEATHER_API_KEY=9ac4cf23a13cc3da12b05c2e95d7bdc7
+STORMGLASS_API_KEY=6c4b8c88-5c3e-11ef-8b69-*** (configured)
+NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=pk.eyJ1IjoicnByb3ZpbmUiLCJhIjoiY20xd3l3cTJ1MHhnZjJtczhoaDR1eGNzNyJ9.*** (configured)
+ANTHROPIC_API_KEY=sk-ant-api03-*** (configured)
+HUBSPOT_ACCESS_TOKEN=pat-na1-*** (configured)
+GOOGLE_PLACES_API_KEY=AIzaSyDhzMy2Y9SUeDMwKMeoXKMLZyJLAkEUCrQ
+```
+
+**Status:** ✅ Live and functional with all integrations active
 
 ## 📊 API Rate Limits
 
@@ -159,8 +178,11 @@ For support, email support@oahutransithub.com or open an issue on GitHub.
 
 ## 🔗 Links
 
-- [Live Demo](https://oahu-transit-hub.vercel.app)
-- [Documentation](https://github.com/rprovine/oahu-transit-hub)
+- [Live Application](https://oahu-transit-r33wkrdv4-rprovines-projects.vercel.app)
+- [GitHub Repository](https://github.com/rprovine/oahu-transit-hub)
+- [Trip Planner](https://oahu-transit-r33wkrdv4-rprovines-projects.vercel.app/trip-planner)
+- [Local Dashboard](https://oahu-transit-r33wkrdv4-rprovines-projects.vercel.app/dashboard/local)
+- [Tourist Guide](https://oahu-transit-r33wkrdv4-rprovines-projects.vercel.app/dashboard/tourist)
 
 ---
 

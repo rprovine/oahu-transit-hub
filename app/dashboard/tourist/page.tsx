@@ -135,24 +135,123 @@ export default function TouristDashboard() {
     ]
   };
 
-  const toggleFavorite = (destId: string) => {
+  const toggleFavorite = async (destId: string) => {
+    const isAdding = !favorites.includes(destId);
+    
     setFavorites(prev => 
-      prev.includes(destId) 
-        ? prev.filter(id => id !== destId)
-        : [...prev, destId]
+      isAdding
+        ? [...prev, destId]
+        : prev.filter(id => id !== destId)
     );
+    
+    // Track favorite activity in CRM
+    try {
+      await fetch('/api/crm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'track_activity',
+          contactEmail: 'tourist@example.com', // Would get from auth context
+          activityType: isAdding ? 'destination_favorited' : 'destination_unfavorited',
+          details: {
+            destination_id: destId,
+            destination_name: destinations[selectedCategory as keyof typeof destinations].find(d => d.id === destId)?.name
+          }
+        })
+      });
+    } catch (error) {
+      console.error('Failed to track favorite activity:', error);
+    }
+  };
+  
+  const getDirections = async (destinationName: string) => {
+    try {
+      // Get user's current location (mock for now)
+      const origin = 'Waikiki Beach, Honolulu, HI'; // Would use geolocation
+      
+      // Track direction request in CRM
+      await fetch('/api/crm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'track_activity',
+          contactEmail: 'tourist@example.com', // Would get from auth context
+          activityType: 'directions_requested',
+          details: {
+            origin,
+            destination: destinationName,
+            user_type: 'tourist'
+          }
+        })
+      });
+      
+      // Navigate to trip planner with pre-filled destination
+      const params = new URLSearchParams({
+        destination: destinationName,
+        origin: origin
+      });
+      
+      window.location.href = `/trip-planner?${params.toString()}`;
+    } catch (error) {
+      console.error('Failed to get directions:', error);
+      // Fallback to trip planner without pre-filled data
+      window.location.href = '/trip-planner';
+    }
   };
 
   useEffect(() => {
+    // Load real beach/weather conditions
+    loadBeachConditions();
+    
     const interval = setInterval(() => {
-      setBeachConditions(prev => ({
-        ...prev,
-        waterTemp: Math.floor(Math.random() * 3) + 78,
-        windSpeed: Math.floor(Math.random() * 5) + 10
-      }));
-    }, 30000);
+      loadBeachConditions();
+    }, 300000); // Update every 5 minutes
+    
     return () => clearInterval(interval);
   }, []);
+  
+  const loadBeachConditions = async () => {
+    try {
+      // Get weather for multiple beach locations
+      const beachLocations = [
+        { name: 'Waikiki', lat: 21.2793, lon: -157.8293 },
+        { name: 'Lanikai', lat: 21.3972, lon: -157.7394 },
+        { name: 'North Shore', lat: 21.5944, lon: -158.0430 }
+      ];
+      
+      const weatherResponse = await fetch('/api/weather', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locations: beachLocations })
+      });
+      
+      const weatherData = await weatherResponse.json();
+      
+      if (weatherData.success && weatherData.locations.length > 0) {
+        const waikikiWeather = weatherData.locations.find((loc: any) => loc.name === 'Waikiki');
+        
+        if (waikikiWeather) {
+          // Get marine conditions for Waikiki
+          const marineResponse = await fetch(`/api/weather?lat=21.2793&lon=-157.8293&marine=true`);
+          const marineData = await marineResponse.json();
+          
+          if (marineData.success && marineData.marine) {
+            setBeachConditions({
+              surfHeight: `${Math.round(marineData.marine.waveHeight * 3.28)} ft`, // Convert meters to feet
+              waterTemp: Math.round(marineData.marine.waterTemp * 9/5 + 32), // Convert C to F
+              uvIndex: waikikiWeather.weather.uvIndex,
+              windSpeed: waikikiWeather.weather.windSpeed,
+              visibility: marineData.marine.visibility > 8 ? 'Excellent' : marineData.marine.visibility > 5 ? 'Good' : 'Fair',
+              tideStatus: 'Check local tide charts'
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load beach conditions:', error);
+      // Keep existing mock data on error
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-tropical-50 to-white">
@@ -305,7 +404,7 @@ export default function TouristDashboard() {
                   <div className="ml-4">
                     <div className="space-y-2">
                       <button 
-                        onClick={() => setSelectedDestination(dest)}
+                        onClick={() => getDirections(dest.name)}
                         className="bg-tropical-600 text-white px-6 py-3 rounded-lg hover:bg-tropical-700 w-full"
                       >
                         Get Directions
@@ -397,7 +496,10 @@ export default function TouristDashboard() {
                       <p className="font-semibold">{dest.name}</p>
                       <p className="text-sm text-gray-600">{dest.time} transit • {dest.rating}⭐</p>
                     </div>
-                    <button className="text-tropical-600 hover:text-tropical-700">
+                    <button 
+                      onClick={() => getDirections(dest.name)}
+                      className="text-tropical-600 hover:text-tropical-700"
+                    >
                       <Navigation className="h-5 w-5" />
                     </button>
                   </div>

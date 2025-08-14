@@ -46,6 +46,16 @@ export default function TripPlanner() {
     ]
   });
 
+  // Load URL parameters on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlOrigin = params.get('origin');
+    const urlDestination = params.get('destination');
+    
+    if (urlOrigin) setOrigin(urlOrigin);
+    if (urlDestination) setDestination(urlDestination);
+  }, []);
+
   const popularDestinations = [
     { name: 'Waikiki Beach', icon: '🏖️', category: 'Beach' },
     { name: 'Diamond Head', icon: '🏔️', category: 'Attraction' },
@@ -70,27 +80,61 @@ export default function TripPlanner() {
     'Makapuu Lighthouse, Honolulu, HI'
   ];
 
-  const handleOriginChange = (value: string) => {
+  const handleOriginChange = async (value: string) => {
     setOrigin(value);
     if (value.length > 2) {
-      const suggestions = oahuLocations.filter(location => 
-        location.toLowerCase().includes(value.toLowerCase())
-      );
-      setOriginSuggestions(suggestions.slice(0, 5));
-      setShowOriginSuggestions(true);
+      try {
+        const response = await fetch(`/api/geocode?q=${encodeURIComponent(value)}`);
+        const data = await response.json();
+        if (data.success) {
+          setOriginSuggestions(data.suggestions.map((s: any) => s.place_name));
+        } else {
+          // Fallback to static suggestions
+          const suggestions = oahuLocations.filter(location => 
+            location.toLowerCase().includes(value.toLowerCase())
+          );
+          setOriginSuggestions(suggestions.slice(0, 5));
+        }
+        setShowOriginSuggestions(true);
+      } catch (error) {
+        console.error('Geocoding error:', error);
+        // Fallback to static suggestions
+        const suggestions = oahuLocations.filter(location => 
+          location.toLowerCase().includes(value.toLowerCase())
+        );
+        setOriginSuggestions(suggestions.slice(0, 5));
+        setShowOriginSuggestions(true);
+      }
     } else {
       setShowOriginSuggestions(false);
     }
   };
 
-  const handleDestinationChange = (value: string) => {
+  const handleDestinationChange = async (value: string) => {
     setDestination(value);
     if (value.length > 2) {
-      const suggestions = oahuLocations.filter(location => 
-        location.toLowerCase().includes(value.toLowerCase())
-      );
-      setDestinationSuggestions(suggestions.slice(0, 5));
-      setShowDestinationSuggestions(true);
+      try {
+        const response = await fetch(`/api/geocode?q=${encodeURIComponent(value)}`);
+        const data = await response.json();
+        if (data.success) {
+          setDestinationSuggestions(data.suggestions.map((s: any) => s.place_name));
+        } else {
+          // Fallback to static suggestions
+          const suggestions = oahuLocations.filter(location => 
+            location.toLowerCase().includes(value.toLowerCase())
+          );
+          setDestinationSuggestions(suggestions.slice(0, 5));
+        }
+        setShowDestinationSuggestions(true);
+      } catch (error) {
+        console.error('Geocoding error:', error);
+        // Fallback to static suggestions
+        const suggestions = oahuLocations.filter(location => 
+          location.toLowerCase().includes(value.toLowerCase())
+        );
+        setDestinationSuggestions(suggestions.slice(0, 5));
+        setShowDestinationSuggestions(true);
+      }
     } else {
       setShowDestinationSuggestions(false);
     }
@@ -111,8 +155,146 @@ export default function TripPlanner() {
     
     setIsPlanning(true);
     
-    // Simulate API call to trip planning service
-    setTimeout(() => {
+    try {
+      // First geocode the addresses to get coordinates
+      const [originGeocode, destGeocode] = await Promise.all([
+        fetch(`/api/geocode?q=${encodeURIComponent(origin)}`),
+        fetch(`/api/geocode?q=${encodeURIComponent(destination)}`)
+      ]);
+      
+      const [originData, destData] = await Promise.all([
+        originGeocode.json(),
+        destGeocode.json()
+      ]);
+      
+      if (!originData.success || !destData.success) {
+        throw new Error('Failed to geocode addresses');
+      }
+      
+      const originCoords = originData.suggestions[0]?.center;
+      const destCoords = destData.suggestions[0]?.center;
+      
+      if (!originCoords || !destCoords) {
+        throw new Error('Could not find coordinates for addresses');
+      }
+      
+      // Get AI trip plan using Claude
+      const aiResponse = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'plan_trip',
+          origin,
+          destination,
+          userType: 'tourist', // Could be determined from user preferences
+          timeOfDay: departureTime,
+          preferences: ['fastest', 'cheapest', 'scenic']
+        })
+      });
+      
+      const aiData = await aiResponse.json();
+      
+      // Get actual routing from Mapbox and transit APIs
+      const [routingResponse, transitResponse] = await Promise.all([
+        fetch('/api/geocode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            origin: { lat: originCoords[1], lon: originCoords[0] },
+            destination: { lat: destCoords[1], lon: destCoords[0] }
+          })
+        }),
+        fetch('/api/transit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'plan_trip',
+            origin: { lat: originCoords[1], lon: originCoords[0] },
+            destination: { lat: destCoords[1], lon: destCoords[0] },
+            time: departureTime
+          })
+        })
+      ]);
+      
+      const [routingData, transitData] = await Promise.all([
+        routingResponse.json(),
+        transitResponse.json()
+      ]);
+      
+      // Combine AI insights with real routing data
+      const processedRoutes: RouteOption[] = [];
+      
+      // Add walking route
+      if (routingData.success && routingData.routes.walking?.length > 0) {
+        const walkingRoute = routingData.routes.walking[0];
+        processedRoutes.push({
+          id: 'walking',
+          totalTime: Math.round(walkingRoute.duration / 60),
+          totalCost: 0,
+          co2Saved: Math.round(walkingRoute.distance * 0.0002 * 100) / 100, // rough estimate
+          type: 'greenest',
+          steps: [
+            { mode: 'walk', instruction: `Walk ${Math.round(walkingRoute.distance / 1000 * 10) / 10} km to destination`, duration: Math.round(walkingRoute.duration / 60) }
+          ]
+        });
+      }
+      
+      // Add cycling route
+      if (routingData.success && routingData.routes.cycling?.length > 0) {
+        const cyclingRoute = routingData.routes.cycling[0];
+        processedRoutes.push({
+          id: 'cycling',
+          totalTime: Math.round(cyclingRoute.duration / 60),
+          totalCost: 4.95, // Biki bike share day pass
+          co2Saved: Math.round(cyclingRoute.distance * 0.0004 * 100) / 100,
+          type: 'fastest',
+          steps: [
+            { mode: 'walk', instruction: 'Walk to Biki station', duration: 2 },
+            { mode: 'bus', instruction: `Bike ${Math.round(cyclingRoute.distance / 1000 * 10) / 10} km`, duration: Math.round(cyclingRoute.duration / 60) },
+            { mode: 'walk', instruction: 'Walk from Biki station', duration: 2 }
+          ]
+        });
+      }
+      
+      // Add transit routes
+      if (transitData.success && transitData.tripPlan?.plans?.length > 0) {
+        transitData.tripPlan.plans.forEach((plan: any, index: number) => {
+          processedRoutes.push({
+            id: `transit-${index}`,
+            totalTime: Math.round(plan.duration / 60),
+            totalCost: plan.cost || 2.75,
+            co2Saved: 3.2, // Average for public transit
+            type: index === 0 ? 'fastest' : 'cheapest',
+            steps: plan.legs.map((leg: any) => ({
+              mode: leg.mode.toLowerCase() === 'transit' ? 'bus' : leg.mode.toLowerCase(),
+              instruction: leg.mode === 'TRANSIT' ? `${leg.route} to ${leg.to.name}` : `${leg.mode} to ${leg.to.name}`,
+              duration: Math.round(leg.duration / 60),
+              route: leg.route
+            }))
+          });
+        });
+      }
+      
+      // If no routes found, use fallback
+      if (processedRoutes.length === 0) {
+        processedRoutes.push({
+          id: 'fallback',
+          totalTime: 30,
+          totalCost: 2.75,
+          co2Saved: 2.5,
+          type: 'fastest',
+          steps: [
+            { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
+            { mode: 'bus', instruction: 'Take connecting bus routes', duration: 20 },
+            { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
+          ]
+        });
+      }
+      
+      setRoutes(processedRoutes);
+    } catch (error) {
+      console.error('Trip planning error:', error);
+      // Fallback to mock data
       const mockRoutes: RouteOption[] = [
         {
           id: 'fastest',
@@ -126,38 +308,12 @@ export default function TripPlanner() {
             { mode: 'bus', instruction: 'Route 8 to Ala Moana', duration: 18, route: '8', color: 'blue' },
             { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
           ]
-        },
-        {
-          id: 'cheapest',
-          totalTime: 35,
-          totalCost: 2.75,
-          co2Saved: 3.2,
-          type: 'cheapest',
-          steps: [
-            { mode: 'walk', instruction: 'Walk to Skyline Station', duration: 5 },
-            { mode: 'wait', instruction: 'Wait for Rail', duration: 3 },
-            { mode: 'rail', instruction: 'Skyline Rail to Kalihi', duration: 15, route: 'Skyline', color: 'green' },
-            { mode: 'walk', instruction: 'Walk to Bus Stop', duration: 2 },
-            { mode: 'bus', instruction: 'Route 42 to destination', duration: 10, route: '42', color: 'orange' }
-          ]
-        },
-        {
-          id: 'greenest',
-          totalTime: 42,
-          totalCost: 2.75,
-          co2Saved: 4.1,
-          type: 'greenest',
-          steps: [
-            { mode: 'walk', instruction: 'Walk to Transit Center', duration: 8 },
-            { mode: 'rail', instruction: 'Skyline Rail (clean energy)', duration: 22, route: 'Skyline', color: 'green' },
-            { mode: 'walk', instruction: 'Walk to destination', duration: 12 }
-          ]
         }
       ];
-      
       setRoutes(mockRoutes);
+    } finally {
       setIsPlanning(false);
-    }, 2000);
+    }
   };
 
   const getModeIcon = (mode: TripStep['mode']) => {
