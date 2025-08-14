@@ -96,26 +96,34 @@ export default function TripPlanner() {
 
   const handleOriginChange = async (value: string) => {
     setOrigin(value);
-    if (value.length >= 2) {  // Changed from > 2 to >= 2
+    
+    // Show suggestions even for 1 character
+    if (value.length > 0) {
       // Always show Oahu locations immediately
       const suggestions = oahuLocations.filter(location => 
         location.toLowerCase().includes(value.toLowerCase())
       );
-      setOriginSuggestions(suggestions.slice(0, 8)); // Show more suggestions
-      setShowOriginSuggestions(true);
       
-      // Also try geocoding API for better results
-      try {
-        const response = await fetch(`/api/geocode?q=${encodeURIComponent(value + ', Oahu, HI')}`);
-        const data = await response.json();
-        if (data.success && data.suggestions?.length > 0) {
-          // Combine local and API suggestions
-          const apiSuggestions = data.suggestions.map((s: any) => s.place_name);
-          const combined = [...new Set([...suggestions.slice(0, 3), ...apiSuggestions.slice(0, 5)])];
-          setOriginSuggestions(combined);
+      if (suggestions.length > 0) {
+        setOriginSuggestions(suggestions.slice(0, 8));
+        setShowOriginSuggestions(true);
+      }
+      
+      // Try geocoding API for better results after 2 characters
+      if (value.length > 2) {
+        try {
+          const response = await fetch(`/api/geocode?q=${encodeURIComponent(value)}`);
+          const data = await response.json();
+          if (data.success && data.suggestions?.length > 0) {
+            const apiSuggestions = data.suggestions.map((s: any) => s.place_name);
+            // Combine and deduplicate
+            const combined = [...new Set([...apiSuggestions.slice(0, 5), ...suggestions.slice(0, 3)])];
+            setOriginSuggestions(combined);
+            setShowOriginSuggestions(true);
+          }
+        } catch (error) {
+          console.error('Geocoding error:', error);
         }
-      } catch (error) {
-        console.error('Geocoding error:', error);
       }
     } else {
       setShowOriginSuggestions(false);
@@ -124,30 +132,40 @@ export default function TripPlanner() {
 
   const handleDestinationChange = async (value: string) => {
     setDestination(value);
-    if (value.length >= 2) {  // Changed from > 2 to >= 2
+    
+    // Show suggestions even for 1 character
+    if (value.length > 0) {
       // Always show Oahu locations immediately  
       const suggestions = oahuLocations.filter(location => 
         location.toLowerCase().includes(value.toLowerCase())
       );
+      
       // Add Ala Moana as a top suggestion if searching for it
       if (value.toLowerCase().includes('ala')) {
         suggestions.unshift('Ala Moana Center, Honolulu, HI');
       }
-      setDestinationSuggestions([...new Set(suggestions)].slice(0, 8)); // Show more suggestions
-      setShowDestinationSuggestions(true);
       
-      // Also try geocoding API for better results
-      try {
-        const response = await fetch(`/api/geocode?q=${encodeURIComponent(value + ', Oahu, HI')}`);
-        const data = await response.json();
-        if (data.success && data.suggestions?.length > 0) {
-          // Combine local and API suggestions
-          const apiSuggestions = data.suggestions.map((s: any) => s.place_name);
-          const combined = [...new Set([...suggestions.slice(0, 3), ...apiSuggestions.slice(0, 5)])];
-          setDestinationSuggestions(combined);
+      const uniqueSuggestions = [...new Set(suggestions)].slice(0, 8);
+      if (uniqueSuggestions.length > 0) {
+        setDestinationSuggestions(uniqueSuggestions);
+        setShowDestinationSuggestions(true);
+      }
+      
+      // Try geocoding API for better results after 2 characters
+      if (value.length > 2) {
+        try {
+          const response = await fetch(`/api/geocode?q=${encodeURIComponent(value)}`);
+          const data = await response.json();
+          if (data.success && data.suggestions?.length > 0) {
+            const apiSuggestions = data.suggestions.map((s: any) => s.place_name);
+            // Combine and deduplicate
+            const combined = [...new Set([...apiSuggestions.slice(0, 5), ...uniqueSuggestions.slice(0, 3)])];
+            setDestinationSuggestions(combined);
+            setShowDestinationSuggestions(true);
+          }
+        } catch (error) {
+          console.error('Geocoding error:', error);
         }
-      } catch (error) {
-        console.error('Geocoding error:', error);
       }
     } else {
       setShowDestinationSuggestions(false);
@@ -535,8 +553,8 @@ export default function TripPlanner() {
                     value={origin}
                     onChange={(e) => handleOriginChange(e.target.value)}
                     onFocus={() => {
-                      if (origin.length > 2) {
-                        handleOriginChange(origin); // Trigger autocomplete on focus
+                      if (origin.length > 0 && originSuggestions.length > 0) {
+                        setShowOriginSuggestions(true);
                       }
                     }}
                     className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500"
@@ -568,8 +586,8 @@ export default function TripPlanner() {
                     value={destination}
                     onChange={(e) => handleDestinationChange(e.target.value)}
                     onFocus={() => {
-                      if (destination.length > 2) {
-                        handleDestinationChange(destination); // Trigger autocomplete on focus
+                      if (destination.length > 0 && destinationSuggestions.length > 0) {
+                        setShowDestinationSuggestions(true);
                       }
                     }}
                     className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500"
