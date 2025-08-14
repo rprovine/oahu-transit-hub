@@ -48,6 +48,14 @@ A comprehensive public transit application for Oahu, Hawaii, featuring real-time
 10. **Browser Geolocation API**: Real-time location tracking
 11. **Web Speech API**: Hawaiian pronunciation audio guides
 
+### Transit Routing System
+- **Real Bus Stop Database**: Accurate bus stop locations with coordinates throughout Oahu
+- **Nearest-Stop Algorithm**: Finds actual bus stops within 800m walking distance using Haversine formula
+- **Multi-Modal Integration**: Seamlessly combines bus, rail, walking, and rideshare options
+- **Dynamic Route Calculation**: Real-time route optimization based on actual stop locations
+- **Transfer Planning**: Smart transfer suggestions through major transit hubs
+- **Rideshare Fallback**: Automatic Uber/Lyft/taxi suggestions when no transit available
+
 ### Security Features
 - **Rate Limiting**: Protection against API abuse using Upstash Redis
 - **Input Validation**: Comprehensive data sanitization with Zod
@@ -119,6 +127,26 @@ For rail system integration:
 HART_API_KEY=your_hart_api_key
 ```
 
+### Anthropic Claude API
+For intelligent routing and trip planning:
+```env
+ANTHROPIC_API_KEY=your_anthropic_api_key
+```
+
+### Transit Routing Architecture
+
+The application uses a sophisticated multi-tier routing system:
+
+1. **Bus Stop Database**: Contains real bus stop locations with accurate coordinates, particularly for West Oahu/Kapolei residential areas
+2. **Nearest-Stop Algorithm**: Uses Haversine formula to find stops within 800m (10-minute walk)
+3. **Direct Route Finding**: Identifies common routes between origin and destination stops
+4. **Transfer Planning**: Calculates optimal transfer points through major hubs like Kapolei Transit Center, Downtown, and Ala Moana
+5. **API Integration**: Queries TheBus API for real-time data when available
+6. **AI Fallback**: Uses Claude AI for complex routing scenarios
+7. **Rideshare Alternative**: Suggests Uber/Lyft/taxi with estimated costs when no transit available
+
+**Routing Accuracy**: The system now correctly identifies nearby bus stops (e.g., "Farrington Hwy + Palala St" for Kapolei residential areas) instead of suggesting long walks to distant transit centers.
+
 **Note**: The application is designed to gracefully handle API failures by returning empty arrays instead of mock data, ensuring users never see fake transit information.
 
 ## 🔐 Security Configuration
@@ -173,7 +201,16 @@ HART_API_KEY=your_hart_api_key
 
 **Status:** ✅ Live and functional with all integrations active
 
-## 🌺 Enhanced Features (Latest Update)
+## 🌺 Enhanced Features (Latest Updates)
+
+### 🚍 Accurate Bus Stop Routing (December 2024)
+- **Real Bus Stop Database**: Integrated actual bus stop locations throughout Oahu
+- **Smart Stop Detection**: Finds nearest stops within 800m using precise GPS coordinates
+- **Realistic Walking Times**: Calculates walking times at 5 km/h pace
+- **West Oahu Coverage**: Comprehensive Kapolei/Ewa Beach residential area stops
+- **Direct Route Optimization**: Identifies direct bus routes between nearby stops
+- **Transfer Intelligence**: Smart transfer planning through major transit hubs
+- **No More Long Walks**: Fixed issue where system suggested 10+ minute walks to transit centers
 
 ### 🌍 Location-Aware Services
 - **Real-Time Location Integration**: Uses browser Geolocation API for precise positioning
