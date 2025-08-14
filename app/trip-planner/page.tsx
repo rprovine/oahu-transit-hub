@@ -27,6 +27,7 @@ interface RouteOption {
   steps: TripStep[];
   type: 'fastest' | 'cheapest' | 'greenest';
   realtimeData?: any;
+  message?: string;
 }
 
 export default function TripPlanner() {
@@ -277,27 +278,38 @@ export default function TripPlanner() {
     setIsPlanning(true);
     
     try {
-      // First geocode the addresses to get coordinates
-      const [originGeocode, destGeocode] = await Promise.all([
-        fetch(`/api/geocode?q=${encodeURIComponent(origin)}`),
-        fetch(`/api/geocode?q=${encodeURIComponent(destination)}`)
-      ]);
+      let originCoords, destCoords;
+
+      // Handle "Your Current Location" specially
+      if (origin === 'Your Current Location' || origin.includes('Current Location')) {
+        // Get current position using browser geolocation
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 60000
+          });
+        });
+        originCoords = [position.coords.longitude, position.coords.latitude];
+      } else {
+        // Geocode the origin address
+        const originGeocode = await fetch(`/api/geocode?q=${encodeURIComponent(origin)}`);
+        const originData = await originGeocode.json();
+        if (!originData.success) {
+          throw new Error('Failed to geocode origin address');
+        }
+        originCoords = originData.suggestions[0]?.center;
+      }
+
+      // Always geocode the destination
+      const destGeocode = await fetch(`/api/geocode?q=${encodeURIComponent(destination)}`);
+      const destData = await destGeocode.json();
       
-      const [originData, destData] = await Promise.all([
-        originGeocode.json(),
-        destGeocode.json()
-      ]);
-      
-      if (!originData.success || !destData.success) {
-        throw new Error('Failed to geocode addresses');
+      if (!destData.success) {
+        throw new Error('Failed to geocode destination address');
       }
       
-      // Log the suggestions for debugging
-      console.log('Origin suggestions:', originData.suggestions);
-      console.log('Destination suggestions:', destData.suggestions);
-      
-      const originCoords = originData.suggestions[0]?.center;
-      const destCoords = destData.suggestions[0]?.center;
+      destCoords = destData.suggestions[0]?.center;
       
       if (!originCoords || !destCoords) {
         throw new Error('Could not find coordinates for addresses');
@@ -367,10 +379,25 @@ export default function TripPlanner() {
         success: transitData.success, 
         hasPlans: transitData.tripPlan?.plans?.length > 0,
         planCount: transitData.tripPlan?.plans?.length,
-        fullData: transitData
+        error: transitData.tripPlan?.error,
+        message: transitData.tripPlan?.message
       });
       
-      if (transitData.success && transitData.tripPlan?.plans?.length > 0) {
+      // Check if we got real data or need API integration
+      if (transitData.success && transitData.tripPlan?.error === 'REAL_API_INTEGRATION_NEEDED') {
+        // Show clear message about real data integration being needed
+        setRoutes([{
+          id: 'real-data-needed',
+          totalTime: 0,
+          totalCost: 0,
+          co2Saved: 0,
+          type: 'fastest',
+          steps: [],
+          message: `Real-time transit planning requires TheBus API integration. 
+                    Coordinates received: Origin (${transitData.tripPlan.coordinates.origin.lat}, ${transitData.tripPlan.coordinates.origin.lon}) 
+                    → Destination (${transitData.tripPlan.coordinates.destination.lat}, ${transitData.tripPlan.coordinates.destination.lon})`
+        }]);
+      } else if (transitData.success && transitData.tripPlan?.plans?.length > 0) {
         transitData.tripPlan.plans.forEach((plan: any, index: number) => {
           validRoutes.push({
             id: `transit-${index}`,
@@ -999,8 +1026,26 @@ export default function TripPlanner() {
                     </button>
                   </div>
 
-                  {/* Route Steps */}
-                  <div className="space-y-3">
+                  {/* Special message display for API integration needed */}
+                  {route.message ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="h-6 w-6 text-amber-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <h4 className="font-semibold text-amber-800 mb-2">Real Data Integration Required</h4>
+                          <div className="text-sm text-amber-700 whitespace-pre-line">
+                            {route.message}
+                          </div>
+                          <div className="mt-3 text-xs text-amber-600">
+                            This app currently needs integration with TheBus API for real-time routing data.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Route Steps */}
+                      <div className="space-y-3">
                     <div className="flex items-center gap-2 overflow-x-auto pb-2">
                       {route.steps.map((step, stepIdx) => (
                         <div key={stepIdx} className="flex items-center gap-2 flex-shrink-0">
@@ -1048,6 +1093,8 @@ export default function TripPlanner() {
                       </div>
                     )}
                   </div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>

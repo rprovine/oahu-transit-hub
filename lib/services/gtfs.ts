@@ -52,61 +52,31 @@ interface ServiceAlert {
 }
 
 export class GTFSService {
-  // TheBus API endpoints (actual endpoints from hea.thebus.org)
-  private theBusBaseUrl = 'http://api.thebus.org/api';
-  private theBusAppId: string;
-  
-  // HART Skyline - using DTS endpoints when available
-  private skylineUrl = 'https://www.honolulu.gov/dts/skyline/api'; // Placeholder for when available
-  private hartApiKey: string;
-
-  constructor() {
-    // TheBus HEA API key
-    this.theBusAppId = process.env.THEBUS_APP_ID || '4F08EE2E-5612-41F9-B527-854EAD77AC2B';
-    this.hartApiKey = process.env.HART_API_KEY || '';
-  }
+  private theBusBaseUrl = 'https://hea.thebus.org/api/v2';
+  private theBusAppId = process.env.THEBUS_APP_ID || 'demo';
+  private skylineUrl = 'https://api.hartskyrail.org'; // Placeholder for future HART API
 
   async getRoutes(): Promise<BusRoute[]> {
     try {
-      // Call both TheBus and HART APIs for complete route information
-      const [theBusRoutes, skylineRoutes] = await Promise.all([
-        this.fetchTheBusRoutes(),
-        this.fetchSkylineRoutes()
-      ]);
-      
-      return [...theBusRoutes, ...skylineRoutes];
+      return await this.fetchTheBusRoutes();
     } catch (error) {
       console.error('GTFS routes error:', error);
-      // Return empty array if API calls fail - no fake data
       return [];
     }
   }
 
   async getNearbyStops(lat: number, lon: number, radius: number = 500): Promise<BusStop[]> {
     try {
-      // Call real GTFS APIs to get nearby stops
-      const [theBusStops, skylineStops] = await Promise.all([
-        this.fetchNearbyTheBusStops(lat, lon, radius),
-        this.fetchNearbySkylineStops(lat, lon, radius)
-      ]);
-      
-      return [...theBusStops, ...skylineStops];
+      return await this.fetchNearbyStops(lat, lon, radius);
     } catch (error) {
       console.error('GTFS nearby stops error:', error);
-      // Return empty array if API calls fail - no fake data
       return [];
     }
   }
 
   async getStopArrivals(stopId: string): Promise<BusArrival[]> {
     try {
-      // Call real-time APIs for actual arrival predictions
-      const [theBusArrivals, skylineArrivals] = await Promise.all([
-        this.fetchTheBusArrivals(stopId),
-        this.fetchSkylineArrivals(stopId)
-      ]);
-      
-      return [...theBusArrivals, ...skylineArrivals];
+      return await this.fetchStopArrivals(stopId);
     } catch (error) {
       console.error('GTFS arrivals error:', error);
       return [];
@@ -115,12 +85,11 @@ export class GTFSService {
 
   async getServiceAlerts(): Promise<ServiceAlert[]> {
     try {
-      // Fetch real service alerts from APIs
+      // Combine alerts from TheBus and HART Skyline
       const [theBusAlerts, skylineAlerts] = await Promise.all([
         this.fetchTheBusAlerts(),
         this.fetchSkylineAlerts()
       ]);
-      
       return [...theBusAlerts, ...skylineAlerts];
     } catch (error) {
       console.error('GTFS alerts error:', error);
@@ -130,15 +99,18 @@ export class GTFSService {
 
   async planTrip(origin: [number, number], destination: [number, number], time?: string): Promise<any> {
     try {
-      // Use real GTFS trip planning APIs
-      const [theBusPlan, skylinePlan] = await Promise.all([
-        this.fetchTheBusTripPlan(origin, destination, time),
-        this.fetchSkylineTripPlan(origin, destination, time)
-      ]);
+      console.log(`Trip planning requested from [${origin[1]}, ${origin[0]}] to [${destination[1]}, ${destination[0]}]`);
       
-      // Combine and return the best plans
-      const plans = [...(theBusPlan?.plans || []), ...(skylinePlan?.plans || [])];
-      return plans.length > 0 ? { plans } : null;
+      // Return honest message about data availability
+      return {
+        plans: [],
+        message: 'Real-time trip planning requires TheBus API integration',
+        error: 'REAL_API_INTEGRATION_NEEDED',
+        coordinates: {
+          origin: { lat: origin[1], lon: origin[0] },
+          destination: { lat: destination[1], lon: destination[0] }
+        }
+      };
     } catch (error) {
       console.error('GTFS trip planning error:', error);
       return null;
@@ -147,163 +119,43 @@ export class GTFSService {
 
   private async fetchTheBusRoutes(): Promise<BusRoute[]> {
     try {
-      // TheBus route endpoint - returns route shape information
-      const response = await fetch(`${this.theBusBaseUrl}/route?appID=${this.theBusAppId}&format=json`);
+      // TODO: Implement real TheBus API call
+      // const response = await fetch(`${this.theBusBaseUrl}/route?appID=${this.theBusAppId}&format=json`);
       
-      if (!response.ok) {
-        throw new Error(`TheBus API error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      // Transform TheBus API response to our format
-      if (data && data.routes) {
-        return data.routes.map((route: any) => ({
-          route_id: route.route_id || route.id,
-          route_short_name: route.route_short_name || route.shortName,
-          route_long_name: route.route_long_name || route.longName,
-          route_desc: route.route_desc || '',
-          route_type: 3, // Bus
-          route_color: route.route_color || '0066CC',
-          route_text_color: route.route_text_color || 'FFFFFF'
-        }));
-      }
-      
+      console.log('Real TheBus API integration needed for routes data');
       return [];
     } catch (error) {
       console.error('Error fetching TheBus routes:', error);
-      // If API key not configured, return known routes
-      if (!this.theBusAppId) {
-        return this.getKnownOahuBusRoutes();
-      }
       return [];
     }
   }
 
-  private async fetchSkylineRoutes(): Promise<BusRoute[]> {
+  private async fetchNearbyStops(lat: number, lon: number, radius: number): Promise<BusStop[]> {
     try {
-      const response = await fetch(`${this.skylineUrl}/routes`, {
-        headers: {
-          'Authorization': `Bearer ${this.hartApiKey}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HART API error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      return data.routes || [];
+      // TODO: Implement real TheBus stops API call
+      console.log(`Real TheBus API integration needed for stops near ${lat}, ${lon}`);
+      return [];
     } catch (error) {
-      console.error('Error fetching HART Skyline routes:', error);
+      console.error('Error fetching nearby stops:', error);
       return [];
     }
   }
 
-  private async fetchNearbyTheBusStops(lat: number, lon: number, radius: number): Promise<BusStop[]> {
+  private async fetchStopArrivals(stopId: string): Promise<BusArrival[]> {
     try {
-      // TheBus doesn't have a direct stops-nearby endpoint in their public API
-      // Would need to use static GTFS data or implement proximity search
-      // For now, return empty array when API not available
-      if (!this.theBusAppId) {
-        return [];
-      }
-      
-      // In production, this would query a database of stops or use GTFS static data
+      // TODO: Implement real TheBus arrivals API call
+      console.log(`Real TheBus API integration needed for arrivals at stop ${stopId}`);
       return [];
     } catch (error) {
-      console.error('Error fetching nearby TheBus stops:', error);
-      return [];
-    }
-  }
-
-  private async fetchNearbySkylineStops(lat: number, lon: number, radius: number): Promise<BusStop[]> {
-    try {
-      const response = await fetch(`${this.skylineUrl}/stops-nearby?lat=${lat}&lon=${lon}&radius=${radius}`, {
-        headers: {
-          'Authorization': `Bearer ${this.hartApiKey}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HART stops API error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      return data.stops || [];
-    } catch (error) {
-      console.error('Error fetching nearby HART Skyline stops:', error);
-      return [];
-    }
-  }
-
-  private async fetchTheBusArrivals(stopId: string): Promise<BusArrival[]> {
-    try {
-      // TheBus arrivals endpoint - reports bus arrivals at a specific stop
-      const response = await fetch(`${this.theBusBaseUrl}/arrivals?appID=${this.theBusAppId}&stop=${stopId}&format=json`);
-      
-      if (!response.ok) {
-        throw new Error(`TheBus arrivals API error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      // Transform TheBus API response to our format
-      if (data && data.arrivals) {
-        return data.arrivals.map((arrival: any) => ({
-          route_id: arrival.route,
-          route_name: arrival.headsign,
-          stop_id: stopId,
-          stop_name: arrival.stopName || 'Bus Stop',
-          arrival_time: arrival.arrivalTime,
-          departure_time: arrival.departureTime || arrival.arrivalTime,
-          realtime_arrival: arrival.estimated,
-          delay_minutes: arrival.delay || 0,
-          vehicle_id: arrival.vehicle,
-          direction: arrival.direction || 'inbound',
-          headsign: arrival.headsign
-        }));
-      }
-      
-      return [];
-    } catch (error) {
-      console.error('Error fetching TheBus arrivals:', error);
-      return [];
-    }
-  }
-
-  private async fetchSkylineArrivals(stopId: string): Promise<BusArrival[]> {
-    try {
-      const response = await fetch(`${this.skylineUrl}/arrivals?stop_id=${stopId}`, {
-        headers: {
-          'Authorization': `Bearer ${this.hartApiKey}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HART arrivals API error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      return data.arrivals || [];
-    } catch (error) {
-      console.error('Error fetching HART Skyline arrivals:', error);
+      console.error('Error fetching stop arrivals:', error);
       return [];
     }
   }
 
   private async fetchTheBusAlerts(): Promise<ServiceAlert[]> {
     try {
-      // TheBus alerts would come from their service advisories
-      // Real implementation would fetch from their alerts endpoint when available
-      if (!this.theBusAppId) {
-        return [];
-      }
-      
-      // Would fetch from actual alerts endpoint
+      // TODO: Implement real TheBus alerts API call
+      console.log('Real TheBus API integration needed for service alerts');
       return [];
     } catch (error) {
       console.error('Error fetching TheBus alerts:', error);
@@ -313,438 +165,12 @@ export class GTFSService {
 
   private async fetchSkylineAlerts(): Promise<ServiceAlert[]> {
     try {
-      const response = await fetch(`${this.skylineUrl}/alerts`, {
-        headers: {
-          'Authorization': `Bearer ${this.hartApiKey}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HART alerts API error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      return data.alerts || [];
+      // TODO: Implement real HART Skyline alerts API call
+      console.log('Real HART Skyline API integration needed for service alerts');
+      return [];
     } catch (error) {
       console.error('Error fetching HART Skyline alerts:', error);
       return [];
     }
-  }
-
-  private async fetchTheBusTripPlan(origin: [number, number], destination: [number, number], time?: string): Promise<any> {
-    try {
-      const originLon = origin[0];
-      const originLat = origin[1];
-      const destLat = destination[1];
-      const destLon = destination[0];
-      
-      // Check for specific route corridors based on coordinates
-      const isKapoleiOrigin = originLon < -158.0 && originLat < 21.35; // Kapolei area
-      const isKalihiDest = Math.abs(destLat - 21.33) < 0.02 && Math.abs(destLon - (-157.87)) < 0.02; // Kalihi/Gulick area
-      const isAlaMoanaDest = Math.abs(destLat - 21.2906) < 0.02 && Math.abs(destLon - (-157.8420)) < 0.02;
-      
-      // Kapolei to Kalihi route
-      if (isKapoleiOrigin && isKalihiDest) {
-        return {
-          plans: [
-            {
-              duration: 3300, // 55 minutes (realistic for Kapolei to Kalihi)
-              walking_distance: 800,
-              transfers: 1,
-              cost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
-              legs: [
-                {
-                  mode: 'WALK',
-                  from: { lat: origin[1], lon: origin[0], name: 'Origin' },
-                  to: { lat: origin[1], lon: origin[0] + 0.002, name: 'Bus Stop' },
-                  duration: 300,
-                  distance: 400
-                },
-                {
-                  mode: 'TRANSIT',
-                  route: 'C',
-                  routeName: 'Country Express',
-                  from: { lat: origin[1], lon: origin[0] + 0.002, name: 'Kapolei Transit Center' },
-                  to: { lat: 21.310, lon: -157.858, name: 'Downtown Honolulu' },
-                  duration: 2100,
-                  headsign: 'Country Express to Town'
-                },
-                {
-                  mode: 'TRANSIT',
-                  route: '1',
-                  routeName: 'Route 1 Kalihi',
-                  from: { lat: 21.310, lon: -157.858, name: 'Downtown Transfer' },
-                  to: { lat: 21.33, lon: -157.87, name: 'Gulick Ave' },
-                  duration: 600,
-                  headsign: 'Kalihi via School St'
-                },
-                {
-                  mode: 'WALK',
-                  from: { lat: 21.33, lon: -157.87, name: 'Gulick Ave Stop' },
-                  to: { lat: destination[1], lon: destination[0], name: 'Destination' },
-                  duration: 300,
-                  distance: 400
-                }
-              ]
-            },
-            {
-              duration: 2700, // 45 minutes (direct express route if available)
-              walking_distance: 500,
-              transfers: 0,
-              cost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
-              legs: [
-                {
-                  mode: 'WALK',
-                  from: { lat: origin[1], lon: origin[0], name: 'Origin' },
-                  to: { lat: origin[1], lon: origin[0] + 0.002, name: 'Bus Stop' },
-                  duration: 300,
-                  distance: 250
-                },
-                {
-                  mode: 'TRANSIT',
-                  route: '41',
-                  routeName: 'Route 41 Ewa Beach-Kalihi',
-                  from: { lat: origin[1], lon: origin[0] + 0.002, name: 'Kapolei' },
-                  to: { lat: 21.33, lon: -157.87, name: 'Gulick Ave' },
-                  duration: 2100,
-                  headsign: 'Kalihi via H-1'
-                },
-                {
-                  mode: 'WALK',
-                  from: { lat: 21.33, lon: -157.87, name: 'Gulick Ave' },
-                  to: { lat: destination[1], lon: destination[0], name: 'Destination' },
-                  duration: 300,
-                  distance: 250
-                }
-              ]
-            }
-          ]
-        };
-      }
-      
-      // Ewa/West Oahu to Ala Moana route
-      if (isKapoleiOrigin && isAlaMoanaDest) {
-        // Return actual bus routes that service this corridor
-        return {
-          plans: [
-            {
-              duration: 2700, // 45 minutes (realistic for Route 40)
-              walking_distance: 500,
-              transfers: 0,
-              cost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
-              legs: [
-                {
-                  mode: 'WALK',
-                  from: { lat: origin[1], lon: origin[0], name: 'Origin' },
-                  to: { lat: origin[1], lon: origin[0] + 0.002, name: 'Bus Stop' },
-                  duration: 300,
-                  distance: 250
-                },
-                {
-                  mode: 'TRANSIT',
-                  route: '40',
-                  routeName: 'Route 40 Express',
-                  from: { lat: origin[1], lon: origin[0] + 0.002, name: 'Ewa Transit Center' },
-                  to: { lat: 21.2906, lon: -157.8420, name: 'Ala Moana Center' },
-                  duration: 2100,
-                  headsign: 'Ala Moana via Express'
-                },
-                {
-                  mode: 'WALK',
-                  from: { lat: 21.2906, lon: -157.8420, name: 'Ala Moana Center' },
-                  to: { lat: destination[1], lon: destination[0], name: 'Destination' },
-                  duration: 300,
-                  distance: 250
-                }
-              ]
-            },
-            {
-              duration: 3300, // 55 minutes (realistic for Route 42)
-              walking_distance: 600,
-              transfers: 0,
-              cost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
-              legs: [
-                {
-                  mode: 'WALK',
-                  from: { lat: origin[1], lon: origin[0], name: 'Origin' },
-                  to: { lat: origin[1], lon: origin[0] + 0.002, name: 'Bus Stop' },
-                  duration: 300,
-                  distance: 250
-                },
-                {
-                  mode: 'TRANSIT',
-                  route: '42',
-                  routeName: 'Route 42',
-                  from: { lat: origin[1], lon: origin[0] + 0.002, name: 'Ewa Beach' },
-                  to: { lat: 21.2906, lon: -157.8420, name: 'Ala Moana Center' },
-                  duration: 2700,
-                  headsign: 'Waikiki via Ala Moana'
-                },
-                {
-                  mode: 'WALK',
-                  from: { lat: 21.2906, lon: -157.8420, name: 'Ala Moana Center' },
-                  to: { lat: destination[1], lon: destination[0], name: 'Destination' },
-                  duration: 300,
-                  distance: 250
-                }
-              ]
-            }
-          ]
-        };
-      }
-      
-      // Check for Lanikai Beach destination (windward side)
-      const isLanikaiDest = Math.abs(destLat - 21.3925) < 0.01 && Math.abs(destLon - (-157.7126)) < 0.01;
-      const isKailua = Math.abs(destLat - 21.3972) < 0.02 && Math.abs(destLon - (-157.7394)) < 0.02; // Lanikai area
-      
-      if (isLanikaiDest || isKailua) {
-        // Real route to Lanikai Beach via Routes 56/57/70
-        return {
-          plans: [
-            {
-              duration: 4200, // 70 minutes (realistic for Honolulu to Lanikai)
-              walking_distance: 1200,
-              transfers: 1,
-              cost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
-              legs: [
-                {
-                  mode: 'WALK',
-                  from: { lat: origin[1], lon: origin[0], name: 'Starting Location' },
-                  to: { lat: 21.2906, lon: -157.8420, name: 'Ala Moana Center' },
-                  duration: 600,
-                  distance: 400,
-                  instruction: 'Walk to Ala Moana Center bus stop'
-                },
-                {
-                  mode: 'TRANSIT',
-                  route: '56',
-                  routeName: 'Route 56 - Kailua',
-                  from: { lat: 21.2906, lon: -157.8420, name: 'Ala Moana Center' },
-                  to: { lat: 21.3925, lon: -157.7126, name: 'Lanikai Beach area' },
-                  duration: 3000,
-                  headsign: 'Kailua Beach via Enchanted Lakes',
-                  instruction: 'Board Route 56 to Kailua/Lanikai'
-                },
-                {
-                  mode: 'WALK',
-                  from: { lat: 21.3925, lon: -157.7126, name: 'Bus Stop' },
-                  to: { lat: destination[1], lon: destination[0], name: 'Lanikai Beach' },
-                  duration: 600,
-                  distance: 500,
-                  instruction: 'Walk to Lanikai Beach'
-                }
-              ]
-            },
-            {
-              duration: 4800, // 80 minutes (alternative route)
-              walking_distance: 800,
-              transfers: 1,
-              cost: DEFAULT_TRIP_FARE,
-              legs: [
-                {
-                  mode: 'WALK',
-                  from: { lat: origin[1], lon: origin[0], name: 'Starting Location' },
-                  to: { lat: 21.2906, lon: -157.8420, name: 'Ala Moana Center' },
-                  duration: 600,
-                  distance: 400,
-                  instruction: 'Walk to Ala Moana Center bus stop'
-                },
-                {
-                  mode: 'TRANSIT',
-                  route: '57',
-                  routeName: 'Route 57 - Kailua',
-                  from: { lat: 21.2906, lon: -157.8420, name: 'Ala Moana Center' },
-                  to: { lat: 21.3925, lon: -157.7126, name: 'Kailua area' },
-                  duration: 3600,
-                  headsign: 'Kailua Beach via Castle Junction',
-                  instruction: 'Board Route 57 to Kailua'
-                },
-                {
-                  mode: 'WALK',
-                  from: { lat: 21.3925, lon: -157.7126, name: 'Bus Stop' },
-                  to: { lat: destination[1], lon: destination[0], name: 'Lanikai Beach' },
-                  duration: 600,
-                  distance: 400,
-                  instruction: 'Walk to Lanikai Beach'
-                }
-              ]
-            }
-          ]
-        };
-      }
-      
-      // Check for Diamond Head destination
-      const isDiamondHeadDest = Math.abs(destLat - 21.2614) < 0.01 && Math.abs(destLon - (-157.8046)) < 0.01;
-      
-      if (isDiamondHeadDest) {
-        // Real route to Diamond Head via Routes 23/24
-        return {
-          plans: [
-            {
-              duration: 1800, // 30 minutes (realistic from Waikiki area)
-              walking_distance: 600,
-              transfers: 0,
-              cost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
-              legs: [
-                {
-                  mode: 'WALK',
-                  from: { lat: origin[1], lon: origin[0], name: 'Starting Location' },
-                  to: { lat: 21.2764, lon: -157.8270, name: 'Waikiki Bus Stop' },
-                  duration: 300,
-                  distance: 200,
-                  instruction: 'Walk to nearest bus stop'
-                },
-                {
-                  mode: 'TRANSIT',
-                  route: '23',
-                  routeName: 'Route 23 - Hawaii Kai-Sea Life Park',
-                  from: { lat: 21.2764, lon: -157.8270, name: 'Waikiki' },
-                  to: { lat: 21.2614, lon: -157.8046, name: 'Diamond Head State Monument' },
-                  duration: 1200,
-                  headsign: 'Hawaii Kai via Diamond Head',
-                  instruction: 'Board Route 23 to Diamond Head'
-                },
-                {
-                  mode: 'WALK',
-                  from: { lat: 21.2614, lon: -157.8046, name: 'Diamond Head Road' },
-                  to: { lat: destination[1], lon: destination[0], name: 'Diamond Head Entrance' },
-                  duration: 300,
-                  distance: 400,
-                  instruction: 'Walk to Diamond Head trailhead'
-                }
-              ]
-            }
-          ]
-        };
-      }
-      
-      // Check for Pearl Harbor destination
-      const isPearlHarborDest = Math.abs(destLat - 21.3649) < 0.01 && Math.abs(destLon - (-157.9399)) < 0.01;
-      
-      if (isPearlHarborDest) {
-        // Real route to Pearl Harbor via Routes 20/42
-        return {
-          plans: [
-            {
-              duration: 2400, // 40 minutes
-              walking_distance: 800,
-              transfers: 0,
-              cost: DEFAULT_TRIP_FARE,
-              legs: [
-                {
-                  mode: 'WALK',
-                  from: { lat: origin[1], lon: origin[0], name: 'Starting Location' },
-                  to: { lat: 21.2906, lon: -157.8420, name: 'Ala Moana Center' },
-                  duration: 600,
-                  distance: 400,
-                  instruction: 'Walk to Ala Moana Center'
-                },
-                {
-                  mode: 'TRANSIT',
-                  route: '20',
-                  routeName: 'Route 20 - Airport-Hickam',
-                  from: { lat: 21.2906, lon: -157.8420, name: 'Ala Moana Center' },
-                  to: { lat: 21.3649, lon: -157.9399, name: 'Pearl Harbor Historic Sites' },
-                  duration: 1500,
-                  headsign: 'Airport via Pearl Harbor',
-                  instruction: 'Board Route 20 to Pearl Harbor'
-                },
-                {
-                  mode: 'WALK',
-                  from: { lat: 21.3649, lon: -157.9399, name: 'Pearl Harbor Visitor Center' },
-                  to: { lat: destination[1], lon: destination[0], name: 'Pearl Harbor Memorial' },
-                  duration: 300,
-                  distance: 200,
-                  instruction: 'Walk to Pearl Harbor entrance'
-                }
-              ]
-            }
-          ]
-        };
-      }
-      
-      // For other routes, would need actual API or return null
-      return null;
-    } catch (error) {
-      console.error('Error generating trip plan:', error);
-      return null;
-    }
-  }
-
-  // Helper method: Known Oahu bus routes (actual routes that exist)
-  private getKnownOahuBusRoutes(): BusRoute[] {
-    return [
-      {
-        route_id: '40',
-        route_short_name: '40',
-        route_long_name: 'Honolulu-Ewa Beach Express',
-        route_desc: 'Express service from West Oahu to Downtown/Ala Moana',
-        route_type: 3,
-        route_color: '0066CC',
-        route_text_color: 'FFFFFF'
-      },
-      {
-        route_id: '42',
-        route_short_name: '42',
-        route_long_name: 'Ewa Beach-Waikiki',
-        route_desc: 'Direct service from Ewa Beach to Waikiki via Ala Moana',
-        route_type: 3,
-        route_color: '0066CC',
-        route_text_color: 'FFFFFF'
-      },
-      {
-        route_id: 'C',
-        route_short_name: 'C',
-        route_long_name: 'Country Express',
-        route_desc: 'Express from West Oahu to town',
-        route_type: 3,
-        route_color: '0066CC',
-        route_text_color: 'FFFFFF'
-      }
-    ];
-  }
-
-  private async fetchSkylineTripPlan(origin: [number, number], destination: [number, number], time?: string): Promise<any> {
-    try {
-      const response = await fetch(`${this.skylineUrl}/trip-plan`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.hartApiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          from: { lat: origin[1], lon: origin[0] },
-          to: { lat: destination[1], lon: destination[0] },
-          time: time || 'now'
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HART trip planning API error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error('Error fetching HART Skyline trip plan:', error);
-      return null;
-    }
-  }
-
-  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-    const R = 6371000; // Earth's radius in meters
-    const dLat = this.deg2rad(lat2 - lat1);
-    const dLon = this.deg2rad(lon2 - lon1);
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  }
-
-  private deg2rad(deg: number): number {
-    return deg * (Math.PI/180);
   }
 }
