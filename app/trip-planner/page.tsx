@@ -566,7 +566,7 @@ export default function TripPlanner() {
         validRoutes.push({
           id: 'skyline-rail',
           totalTime: 50,
-          totalCost: 3.00,
+          totalCost: DEFAULT_TRIP_FARE,
           co2Saved: 5.0, // Rail is more eco-friendly
           type: 'greenest',
           steps: [
@@ -649,7 +649,7 @@ export default function TripPlanner() {
         finalRoutes.push({
           id: 'route-40',
           totalTime: 45,
-          totalCost: 3.00,
+          totalCost: DEFAULT_TRIP_FARE,
           co2Saved: 4.2,
           type: 'fastest',
           steps: [

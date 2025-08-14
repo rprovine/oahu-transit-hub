@@ -189,7 +189,7 @@ Provide a comprehensive trip plan with multiple route options, cultural insights
           id: 'route-1',
           name: 'Recommended Route',
           duration: '30-45 minutes',
-          cost: '$2.75',
+          cost: '$3.00',
           steps: ['Check detailed response for steps'],
           tips: ['Follow the detailed instructions provided'],
           weather_considerations: ['Check current conditions']
@@ -215,7 +215,7 @@ Provide a comprehensive trip plan with multiple route options, cultural insights
           id: 'bus-route',
           name: 'TheBus Route',
           duration: '25-40 minutes',
-          cost: '$2.75',
+          cost: '$3.00',
           steps: [
             'Walk to nearest bus stop (2-5 minutes)',
             'Take TheBus route (timing varies)',

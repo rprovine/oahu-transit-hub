@@ -450,7 +450,7 @@ export default function TouristDashboard() {
                 <h3 className="font-semibold text-lg">🚌 Getting Around Oahu</h3>
                 <ul className="mt-2 space-y-1 text-sm text-gray-600">
                   <li>• Download the DaBus app for real-time schedules</li>
-                  <li>• Get a HOLO card for easy bus payments ($2.75 per ride)</li>
+                  <li>• Get a HOLO card for easy bus payments ($3.00 per ride with free transfers)</li>
                   <li>• Use Biki bike share for short trips in Honolulu</li>
                   <li>• Allow extra time during rush hours (7-9 AM, 4-6 PM)</li>
                 </ul>
@@ -590,16 +590,12 @@ export default function TouristDashboard() {
                   <div className="ml-4">
                     <div className="space-y-2">
                       <button 
-                        onClick={() => getDirections(dest.name)}
-                        className="bg-tropical-600 text-white px-6 py-3 rounded-lg hover:bg-tropical-700 w-full"
+                        onClick={() => getDirections(dest.name, true)}
+                        className="bg-tropical-600 text-white px-6 py-3 rounded-lg hover:bg-tropical-700 w-full flex items-center justify-center gap-2"
                       >
-                        Get Directions
+                        <Navigation className="h-5 w-5" />
+                        Get Directions from Current Location
                       </button>
-                      <Link href="/trip-planner">
-                        <button className="w-full bg-volcanic-600 text-white px-6 py-2 rounded-lg hover:bg-volcanic-700 text-sm">
-                          AI Planner
-                        </button>
-                      </Link>
                     </div>
                     <p className="text-xs text-center text-gray-500">{dest.safetyLevel}</p>
                   </div>
