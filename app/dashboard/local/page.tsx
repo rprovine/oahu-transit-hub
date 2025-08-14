@@ -9,9 +9,9 @@ import {
 } from 'lucide-react';
 
 export default function LocalDashboard() {
-  const [savedLocations] = useState({
-    home: '123 Keeaumoku St, Honolulu, HI',
-    work: '1450 Ala Moana Blvd, Honolulu, HI'
+  const [savedLocations, setSavedLocations] = useState({
+    home: '',
+    work: ''
   });
   const [liveData, setLiveData] = useState({
     nextBus: { route: '8', arrival: 5, destination: 'Ala Moana' },
@@ -26,6 +26,20 @@ export default function LocalDashboard() {
   const [selectedTab, setSelectedTab] = useState('main');
 
   useEffect(() => {
+    // Load saved locations from localStorage
+    const settings = localStorage.getItem('userSettings');
+    if (settings) {
+      try {
+        const parsed = JSON.parse(settings);
+        setSavedLocations({
+          home: parsed.homeAddress || '',
+          work: parsed.workAddress || ''
+        });
+      } catch (error) {
+        console.error('Error loading saved locations:', error);
+      }
+    }
+    
     // Load real data on component mount
     loadLiveData();
     
@@ -250,32 +264,60 @@ export default function LocalDashboard() {
           <h3 className="text-lg font-semibold mb-4">Quick Routes</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <button
-              onClick={() => window.location.href = `/trip-planner?origin=${encodeURIComponent(savedLocations.home)}&destination=${encodeURIComponent(savedLocations.work)}`}
+              onClick={() => {
+                if (!savedLocations.home || !savedLocations.work) {
+                  alert('Please set your home and work addresses in Settings first');
+                  window.location.href = '/settings';
+                } else {
+                  window.location.href = `/trip-planner?origin=${encodeURIComponent(savedLocations.home)}&destination=${encodeURIComponent(savedLocations.work)}`;
+                }
+              }}
               className="p-3 bg-ocean-50 text-ocean-700 rounded-lg hover:bg-ocean-100 transition-colors text-center"
             >
               <div className="text-lg mb-1">🏠→🏢</div>
-              <div className="text-xs">Home to Work</div>
+              <div className="text-xs">{savedLocations.home && savedLocations.work ? 'Home to Work' : 'Set in Settings'}</div>
             </button>
             <button
-              onClick={() => window.location.href = `/trip-planner?origin=${encodeURIComponent(savedLocations.work)}&destination=${encodeURIComponent(savedLocations.home)}`}
+              onClick={() => {
+                if (!savedLocations.home || !savedLocations.work) {
+                  alert('Please set your home and work addresses in Settings first');
+                  window.location.href = '/settings';
+                } else {
+                  window.location.href = `/trip-planner?origin=${encodeURIComponent(savedLocations.work)}&destination=${encodeURIComponent(savedLocations.home)}`;
+                }
+              }}
               className="p-3 bg-tropical-50 text-tropical-700 rounded-lg hover:bg-tropical-100 transition-colors text-center"
             >
               <div className="text-lg mb-1">🏢→🏠</div>
-              <div className="text-xs">Work to Home</div>
+              <div className="text-xs">{savedLocations.home && savedLocations.work ? 'Work to Home' : 'Set in Settings'}</div>
             </button>
             <button
-              onClick={() => window.location.href = `/trip-planner?origin=${encodeURIComponent(savedLocations.home)}`}
+              onClick={() => {
+                if (!savedLocations.home) {
+                  alert('Please set your home address in Settings first');
+                  window.location.href = '/settings';
+                } else {
+                  window.location.href = `/trip-planner?origin=${encodeURIComponent(savedLocations.home)}`;
+                }
+              }}
               className="p-3 bg-sunset-50 text-sunset-700 rounded-lg hover:bg-sunset-100 transition-colors text-center"
             >
               <div className="text-lg mb-1">🏠</div>
-              <div className="text-xs">From Home</div>
+              <div className="text-xs">{savedLocations.home ? 'From Home' : 'Set in Settings'}</div>
             </button>
             <button
-              onClick={() => window.location.href = `/trip-planner?destination=${encodeURIComponent(savedLocations.home)}`}
+              onClick={() => {
+                if (!savedLocations.home) {
+                  alert('Please set your home address in Settings first');
+                  window.location.href = '/settings';
+                } else {
+                  window.location.href = `/trip-planner?destination=${encodeURIComponent(savedLocations.home)}`;
+                }
+              }}
               className="p-3 bg-volcanic-50 text-volcanic-700 rounded-lg hover:bg-volcanic-100 transition-colors text-center"
             >
               <div className="text-lg mb-1">🏠</div>
-              <div className="text-xs">To Home</div>
+              <div className="text-xs">{savedLocations.home ? 'To Home' : 'Set in Settings'}</div>
             </button>
           </div>
         </div>
