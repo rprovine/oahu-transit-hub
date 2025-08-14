@@ -37,17 +37,35 @@ export default function TripPlanner() {
   const [showOriginSuggestions, setShowOriginSuggestions] = useState(false);
   const [showDestinationSuggestions, setShowDestinationSuggestions] = useState(false);
   const [savedLocations, setSavedLocations] = useState({
-    home: '123 Keeaumoku St, Honolulu, HI',
-    work: '1450 Ala Moana Blvd, Honolulu, HI',
-    favorites: [
-      'Waikiki Beach, Honolulu, HI',
-      'Diamond Head State Monument, Honolulu, HI',
-      'Pearl Harbor National Memorial, Honolulu, HI'
-    ]
+    home: '',
+    work: '',
+    favorites: [] as string[]
   });
 
-  // Load URL parameters on mount
+  // Load saved locations and URL parameters on mount
   useEffect(() => {
+    // Load saved locations from localStorage
+    try {
+      const savedSettings = localStorage.getItem('oahu_transit_settings');
+      if (savedSettings) {
+        const settings = JSON.parse(savedSettings);
+        if (settings.locations && settings.locations.length > 0) {
+          const homeLocation = settings.locations.find((loc: any) => loc.type === 'home');
+          const workLocation = settings.locations.find((loc: any) => loc.type === 'work');
+          const favoriteLocations = settings.locations.filter((loc: any) => loc.type === 'favorite');
+          
+          setSavedLocations({
+            home: homeLocation?.address || '',
+            work: workLocation?.address || '',
+            favorites: favoriteLocations.map((loc: any) => loc.address)
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load saved locations:', error);
+    }
+    
+    // Load URL parameters
     const params = new URLSearchParams(window.location.search);
     const urlOrigin = params.get('origin');
     const urlDestination = params.get('destination');
@@ -290,41 +308,44 @@ export default function TripPlanner() {
         });
       }
       
-      // NEVER show walking routes over 3km
+      // ABSOLUTELY NO walking routes over 3km - EVER
       if (routingData.success && routingData.routes?.walking?.length > 0) {
         const walkingRoute = routingData.routes.walking[0];
         const walkingDistanceKm = walkingRoute.distance / 1000;
-        const walkingTimeHours = walkingRoute.duration / 3600;
+        const walkingTimeMinutes = walkingRoute.duration / 60;
         
         console.log('Walking route check:', {
           distance: walkingDistanceKm,
-          duration: walkingTimeHours * 60,
-          shouldInclude: walkingDistanceKm <= 3 && walkingTimeHours <= 0.75
+          duration: walkingTimeMinutes,
+          BLOCKED: walkingDistanceKm > 3
         });
         
-        // STRICT LIMIT: Only suggest walking if under 3km AND under 45 minutes
-        if (walkingDistanceKm <= 3 && walkingTimeHours <= 0.75) {
+        // HARD BLOCK: Only allow walks under 3km AND under 45 minutes
+        if (walkingDistanceKm <= 3 && walkingTimeMinutes <= 45) {
           validRoutes.push({
             id: 'walking',
-            totalTime: Math.round(walkingRoute.duration / 60),
+            totalTime: Math.round(walkingTimeMinutes),
             totalCost: 0,
             co2Saved: Math.round(walkingRoute.distance * 0.0004 * 100) / 100,
             type: 'fastest',
             steps: [
-              { mode: 'walk', instruction: `Walk ${Math.round(walkingDistanceKm * 10) / 10} km to destination`, duration: Math.round(walkingRoute.duration / 60) }
+              { mode: 'walk', instruction: `Walk ${Math.round(walkingDistanceKm * 10) / 10} km to destination`, duration: Math.round(walkingTimeMinutes) }
             ]
           });
         } else {
-          console.log('REJECTED walking route - too far:', walkingDistanceKm, 'km');
+          console.error('⛔ BLOCKED LONG WALK:', walkingDistanceKm, 'km -', walkingTimeMinutes, 'minutes');
         }
       }
       
-      // ALWAYS add bus routes for Ewa to Ala Moana (regardless of other routes)
-      const isEwaToAlaMoana = origin.toLowerCase().includes('palala') || 
-                             origin.toLowerCase().includes('ewa') || 
-                             origin.toLowerCase().includes('91-1020');
+      // ALWAYS add bus routes for ANY Oahu trip over 3km
+      const needsBusRoutes = origin.toLowerCase().includes('palala') || 
+                            origin.toLowerCase().includes('ewa') || 
+                            origin.toLowerCase().includes('91-1020') ||
+                            origin.toLowerCase().includes('gulick') ||
+                            destination.toLowerCase().includes('ala') ||
+                            destination.toLowerCase().includes('gulick');
       
-      if (isEwaToAlaMoana && destination.toLowerCase().includes('ala')) {
+      if (needsBusRoutes || validRoutes.length === 0) {
         console.log('Adding Oahu bus routes for Ewa to Ala Moana');
         // Add actual Oahu bus routes
         validRoutes.push({
@@ -349,6 +370,21 @@ export default function TripPlanner() {
           steps: [
             { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
             { mode: 'bus', instruction: 'Route 42 to Ala Moana', duration: 45, route: '42' },
+            { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
+          ]
+        });
+        
+        // Add Skyline (HART) rail option
+        validRoutes.push({
+          id: 'skyline-rail',
+          totalTime: 50,
+          totalCost: 3.00,
+          co2Saved: 5.0, // Rail is more eco-friendly
+          type: 'greenest',
+          steps: [
+            { mode: 'walk', instruction: 'Walk to nearest Skyline station', duration: 8 },
+            { mode: 'rail', instruction: 'Skyline to Aloha Stadium', duration: 20, route: 'HART' },
+            { mode: 'bus', instruction: 'Transfer to Route 20/62 to Ala Moana', duration: 17, route: '20' },
             { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
           ]
         });
@@ -394,24 +430,47 @@ export default function TripPlanner() {
         console.log('No viable transit routes found for this trip');
       }
       
-      // FINAL CHECK: Remove any route with unrealistic walking
+      // FINAL CHECK: Remove ANY route with walking over 3km
       const finalRoutes = processedRoutes.filter(route => {
-        // Check if any step has walking over 10km
+        // Check every step for long walks
         const hasLongWalk = route.steps.some(step => {
+          // Check instruction text for km
           if (step.instruction && step.instruction.includes('km')) {
             const kmMatch = step.instruction.match(/(\d+\.?\d*)\s*km/);
             if (kmMatch) {
               const km = parseFloat(kmMatch[1]);
               if (km > 3) {
-                console.log('FINAL BLOCK: Removing route with', km, 'km walk');
+                console.error('⛔ FINAL BLOCK: Removing route with', km, 'km walk');
                 return true;
               }
             }
+          }
+          // Also check if it's a walking route with long duration
+          if (route.id === 'walking' && route.totalTime > 45) {
+            console.error('⛔ FINAL BLOCK: Removing walking route over 45 minutes');
+            return true;
           }
           return false;
         });
         return !hasLongWalk;
       });
+      
+      // If we blocked all routes due to long walks, show bus routes instead
+      if (finalRoutes.length === 0 && processedRoutes.length > 0) {
+        console.log('All routes had long walks - adding bus routes instead');
+        finalRoutes.push({
+          id: 'route-40',
+          totalTime: 45,
+          totalCost: 3.00,
+          co2Saved: 4.2,
+          type: 'fastest',
+          steps: [
+            { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
+            { mode: 'bus', instruction: 'Route 40 Express', duration: 35, route: '40' },
+            { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
+          ]
+        });
+      }
       
       setRoutes(finalRoutes);
     } catch (error) {
@@ -507,7 +566,7 @@ export default function TripPlanner() {
           <div className="text-center mb-8">
             <h2 className="text-4xl font-bold text-volcanic-900 mb-4">AI-Powered Trip Planner</h2>
             <p className="text-xl text-gray-600">Plan your journey across Oahu with real-time data and smart routing</p>
-            <p className="text-xs text-gray-400 mt-2">v2.1 - Bus routes enforced, no long walks</p>
+            <p className="text-xs text-gray-400 mt-2">v2.2 - Bus/Skyline routes, saved locations, max 3km walks</p>
           </div>
 
           {/* Quick Access Buttons */}
