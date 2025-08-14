@@ -100,9 +100,15 @@ A comprehensive public transit application for Oahu, Hawaii, featuring real-time
    ```bash
    cp .env.example .env.local
    ```
-   Then edit `.env.local` with your API keys and configuration.
+   Then edit `.env.local` with your API keys:
+   ```env
+   # Required for trip planning
+   NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=your_mapbox_token
+   THEBUS_API_KEY=your_thebus_api_key
+   ANTHROPIC_API_KEY=your_anthropic_api_key
+   ```
 
-4. **Set up Supabase database**
+4. **Set up Supabase database** (optional)
    
    Run the SQL scripts in the `supabase/` directory in your Supabase SQL editor.
 
@@ -112,6 +118,11 @@ A comprehensive public transit application for Oahu, Hawaii, featuring real-time
    ```
 
    Open [http://localhost:3001](http://localhost:3001) to view the application.
+
+6. **Load GTFS Data** (automatic on first request)
+   
+   The GTFS data will automatically download when you first use the trip planner.
+   To manually update: `GET /api/transit/update-gtfs`
 
 ## 🚌 Transit API Configuration
 
@@ -220,6 +231,9 @@ HART_API_KEY=your_hart_api_key
 - **Direct Route Optimization**: Uses real route associations from GTFS data
 - **Transfer Intelligence**: Smart transfer planning through major transit hubs
 - **No Mock Data**: 100% real transit information from official sources
+- **Mapbox Geocoding**: Full address-to-coordinate conversion for trip planning
+- **Real Stop Names**: Shows actual bus stops like "KAMOKILA BL + KAPOLEI PKWY"
+- **Accurate Routes**: Displays real routes like Route C "CountryExpress" and Route 40
 
 ### 🌍 Location-Aware Services
 - **Real-Time Location Integration**: Uses browser Geolocation API for precise positioning
