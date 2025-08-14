@@ -143,7 +143,9 @@ export default function RealtimeRouteCard({
               <span className="font-bold text-lg">Route {route}</span>
             </div>
             {realtimeData && (
-              <Activity className="w-4 h-4 text-green-500 animate-pulse" title="Live tracking" />
+              <span title="Live tracking">
+                <Activity className="w-4 h-4 text-green-500 animate-pulse" />
+              </span>
             )}
           </div>
           
