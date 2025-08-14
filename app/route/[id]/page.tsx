@@ -23,58 +23,167 @@ export default function RouteDetails() {
   const [estimatedArrival, setEstimatedArrival] = useState<Date>(new Date(Date.now() + 30 * 60000));
 
   useEffect(() => {
-    // Try to load route data from localStorage first
-    const storedRouteData = localStorage.getItem(`route_${routeId}`);
-    
-    if (storedRouteData) {
-      try {
-        const parsedData = JSON.parse(storedRouteData);
-        console.log('Loaded route data:', parsedData);
-        
-        const enhancedData = {
-          id: routeId,
-          name: `${parsedData.type?.charAt(0).toUpperCase() + parsedData.type?.slice(1)} Route` || 'Transit Route',
-          from: parsedData.origin || 'Current Location',
-          to: parsedData.destination || 'Selected Destination',
-          duration: parsedData.totalTime || 30,
-          cost: parsedData.totalCost || 2.75,
-          distance: '8.2 miles',
-          nextDeparture: '5 minutes',
-          estimatedArrival: new Date(Date.now() + (parsedData.totalTime || 30) * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          departureTime: new Date(Date.now() + 5 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          type: parsedData.type || 'fastest',
-          co2Saved: parsedData.co2Saved || '3.2 kg',
-          caloriesBurned: 45,
-          walkingDistance: '0.6 miles',
-          transitMode: 'bus',
-          routeNumber: '8',
-          steps: parsedData.steps || [],
-          stops: generateStopsFromSteps(parsedData.steps || [], parsedData),
-          alerts: [
-            { type: 'success', message: 'Route loaded successfully', priority: 'low' },
-            { type: 'success', message: `🌿 You're saving ${parsedData.co2Saved || '3.2 kg'} of CO₂ vs driving!`, priority: 'medium' },
-            { type: 'info', message: '🚌 Route 8 running on schedule', priority: 'low' }
-          ],
-          liveUpdates: {
-            vehicleId: 'BUS_8_101',
-            currentLocation: 'Approaching next stop',
-            delay: 0,
-            crowdLevel: 'moderate',
-            nextStop: 'Keeaumoku St & Kapiolani Blvd',
-            confidence: 95
-          }
-        };
-        setRouteData(enhancedData);
-      } catch (error) {
-        console.error('Failed to parse stored route data:', error);
-        setRouteData(getFallbackRouteData());
+    loadRouteData();
+  }, [routeId]);
+
+  const loadRouteData = async () => {
+    try {
+      // First try to load from localStorage
+      const storedRouteData = localStorage.getItem(`route_${routeId}`);
+      let baseRouteData = null;
+      
+      if (storedRouteData) {
+        try {
+          baseRouteData = JSON.parse(storedRouteData);
+          console.log('Loaded base route data from localStorage:', baseRouteData);
+        } catch (error) {
+          console.error('Failed to parse stored route data:', error);
+        }
       }
-    } else {
-      console.log('No stored route data found, using fallback');
-      // Fallback to mock data
+
+      // Get URL parameters for origin/destination
+      const urlParams = new URLSearchParams(window.location.search);
+      const originParam = urlParams.get('origin') || baseRouteData?.origin;
+      const destinationParam = urlParams.get('destination') || baseRouteData?.destination;
+      
+      // Attempt to fetch real-time data from APIs
+      let liveRouteData = null;
+      let weatherData = null;
+      let transitAlerts = null;
+
+      if (originParam && destinationParam) {
+        try {
+          // Fetch real-time transit data
+          const [geocodeOriginResponse, geocodeDestResponse] = await Promise.all([
+            fetch(`/api/geocode?q=${encodeURIComponent(originParam)}`),
+            fetch(`/api/geocode?q=${encodeURIComponent(destinationParam)}`)
+          ]);
+
+          const [originGeocode, destGeocode] = await Promise.all([
+            geocodeOriginResponse.json(),
+            geocodeDestResponse.json()
+          ]);
+
+          if (originGeocode.success && destGeocode.success) {
+            const originCoords = originGeocode.suggestions[0]?.center;
+            const destCoords = destGeocode.suggestions[0]?.center;
+
+            if (originCoords && destCoords) {
+              // Get real transit routing
+              const routingResponse = await fetch('/api/transit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'plan_trip',
+                  origin: { lat: originCoords[1], lon: originCoords[0] },
+                  destination: { lat: destCoords[1], lon: destCoords[0] }
+                })
+              });
+
+              const routingData = await routingResponse.json();
+              if (routingData.success && routingData.tripPlan?.plans?.length > 0) {
+                liveRouteData = routingData.tripPlan.plans[0];
+                console.log('Loaded live route data from API:', liveRouteData);
+              }
+
+              // Get real weather data
+              const weatherResponse = await fetch(`/api/weather?lat=${originCoords[1]}&lon=${originCoords[0]}`);
+              weatherData = await weatherResponse.json();
+
+              // Get transit alerts
+              const alertsResponse = await fetch('/api/transit?action=alerts');
+              transitAlerts = await alertsResponse.json();
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch live data, using stored/fallback data:', error);
+        }
+      }
+
+      // Combine live data with stored data or fallback
+      const enhancedData = buildRouteData(baseRouteData, liveRouteData, weatherData, transitAlerts, originParam, destinationParam);
+      setRouteData(enhancedData);
+
+    } catch (error) {
+      console.error('Route data loading failed, using fallback:', error);
       setRouteData(getFallbackRouteData());
     }
-  }, [routeId]);
+  };
+
+  const buildRouteData = (storedData: any, liveData: any, weatherData: any, alertsData: any, origin?: string, destination?: string) => {
+    const now = new Date();
+    const departureTime = new Date(now.getTime() + 5 * 60000);
+    
+    // Use live data if available, otherwise stored data, otherwise defaults
+    const duration = liveData?.duration ? Math.round(liveData.duration / 60) : storedData?.totalTime || 28;
+    const cost = liveData?.cost || storedData?.totalCost || 2.75;
+    const arrivalTime = new Date(departureTime.getTime() + duration * 60000);
+
+    // Build alerts from real data
+    const alerts = [];
+    if (alertsData?.success && alertsData.alerts?.length > 0) {
+      alertsData.alerts.forEach((alert: any) => {
+        alerts.push({
+          type: alert.severity === 'warning' ? 'warning' : 'info',
+          message: alert.description,
+          priority: alert.severity === 'warning' ? 'high' : 'low'
+        });
+      });
+    }
+    
+    // Add weather-based alerts
+    if (weatherData?.success) {
+      if (weatherData.weather.condition.toLowerCase().includes('rain')) {
+        alerts.push({
+          type: 'warning',
+          message: `☔ ${weatherData.weather.condition} expected - consider bringing an umbrella`,
+          priority: 'medium'
+        });
+      }
+      alerts.push({
+        type: 'info',
+        message: `🌡️ Current conditions: ${weatherData.weather.temp}°F, ${weatherData.weather.condition}`,
+        priority: 'low'
+      });
+    }
+
+    if (alerts.length === 0) {
+      alerts.push(
+        { type: 'success', message: '🚌 Route running on schedule with high reliability', priority: 'low' },
+        { type: 'success', message: '🌿 Excellent choice! You\'re helping reduce traffic congestion', priority: 'medium' }
+      );
+    }
+
+    return {
+      id: routeId,
+      name: `${(storedData?.type ? storedData.type.charAt(0).toUpperCase() + storedData.type.slice(1) : 'Express')} Route`,
+      from: origin || storedData?.origin || 'Current Location',
+      to: destination || storedData?.destination || 'Selected Destination',
+      duration: duration,
+      cost: cost,
+      distance: '7.4 miles',
+      nextDeparture: '5 minutes',
+      estimatedArrival: arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      departureTime: departureTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      type: storedData?.type || 'fastest',
+      co2Saved: '4.1 kg',
+      caloriesBurned: Math.round(duration * 1.8),
+      walkingDistance: '0.8 miles',
+      transitMode: 'bus',
+      routeNumber: '8',
+      steps: liveData?.legs || storedData?.steps || [],
+      stops: generateStopsFromSteps(liveData?.legs || storedData?.steps || [], { origin, destination, totalTime: duration }),
+      alerts: alerts,
+      liveUpdates: {
+        vehicleId: 'BUS_8_142',
+        currentLocation: 'On route to next stop',
+        delay: liveData?.delay || 0,
+        crowdLevel: 'light',
+        nextStop: 'Next scheduled stop',
+        confidence: liveData ? 98 : 85
+      }
+    };
+  };
 
   const generateStopsFromSteps = (steps: any[], routeData?: any) => {
     if (!steps.length) {
@@ -777,7 +886,43 @@ export default function RouteDetails() {
               <Route className="h-6 w-6 text-orange-600" />
               Alternative Routes
             </h3>
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <h4 className="font-semibold">🚌 TheBus Route 20</h4>
+                    <p className="text-sm text-gray-600">Express service via King Street</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-ocean-600">$2.75</p>
+                    <p className="text-sm text-gray-500">32 min</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span>🌱 3.9 kg CO₂ saved</span>
+                  <span>•</span>
+                  <span>🚌 Alternative bus route</span>
+                </div>
+              </div>
+
+              <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <h4 className="font-semibold">🚊 Skyline Rail + Bus</h4>
+                    <p className="text-sm text-gray-600">HART rail to Aloha Stadium + connecting bus</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-purple-600">$2.75</p>
+                    <p className="text-sm text-gray-500">35 min</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <span>🌱 4.0 kg CO₂ saved</span>
+                  <span>•</span>
+                  <span>🚊 Modern rail system</span>
+                </div>
+              </div>
+
               <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors">
                 <div className="flex justify-between items-start mb-2">
                   <div>
@@ -795,30 +940,12 @@ export default function RouteDetails() {
                   <span>🔥 320 calories burned</span>
                 </div>
               </div>
-
-              <div className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <h4 className="font-semibold">🚴 Biki + Bus</h4>
-                    <p className="text-sm text-gray-600">Bike share + transit combo</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-blue-600">$7.70</p>
-                    <p className="text-sm text-gray-500">24 min</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <span>🌱 3.8 kg CO₂ saved</span>
-                  <span>•</span>
-                  <span>⚡ Fastest option</span>
-                </div>
-              </div>
             </div>
             
             <div className="mt-4 p-3 bg-blue-50 rounded-lg">
               <p className="text-sm text-blue-800">
-                💡 <strong>Tip:</strong> Route 8 typically has the best on-time performance during your travel window. 
-                Consider Route 20 as backup if delays occur.
+                💡 <strong>Tip:</strong> TheBus Route 8 typically has the best on-time performance during your travel window. 
+                Consider Route 20 via King Street or the new Skyline Rail system as alternatives if delays occur.
               </p>
             </div>
           </div>
