@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { 
   Volume2, BookOpen, Heart, Leaf, Users, Mountain, 
   Waves, Sun, Compass, Gift, Coffee, Star, ChevronRight,
-  Play, Pause, ArrowRight, Globe, Shield
+  Play, Pause, ArrowRight, Globe, Shield, ArrowUp, Menu
 } from 'lucide-react';
 
 interface CulturalGuideProps {
@@ -14,6 +14,7 @@ interface CulturalGuideProps {
 export default function ComprehensiveCulturalGuide({ locationContext }: CulturalGuideProps) {
   const [selectedSection, setSelectedSection] = useState('overview');
   const [isPlaying, setIsPlaying] = useState<string | null>(null);
+  const [showMobileNav, setShowMobileNav] = useState(false);
 
   const playPronunciation = (text: string, id: string) => {
     if (isPlaying === id) {
@@ -35,6 +36,7 @@ export default function ComprehensiveCulturalGuide({ locationContext }: Cultural
 
   const scrollToSection = (sectionId: string) => {
     setSelectedSection(sectionId);
+    setShowMobileNav(false); // Close mobile nav on selection
     setTimeout(() => {
       const element = document.getElementById(`section-${sectionId}`);
       if (element) {
@@ -45,6 +47,16 @@ export default function ComprehensiveCulturalGuide({ locationContext }: Cultural
         });
       }
     }, 100);
+  };
+
+  const scrollToTop = () => {
+    const contentArea = document.querySelector('.cultural-guide-content');
+    if (contentArea) {
+      contentArea.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
   };
 
   const sections = [
@@ -980,8 +992,20 @@ export default function ComprehensiveCulturalGuide({ locationContext }: Cultural
       </div>
 
       <div className="flex flex-col lg:flex-row">
+        {/* Mobile Navigation Toggle */}
+        <div className="lg:hidden bg-gray-50 border-b p-4">
+          <button
+            onClick={() => setShowMobileNav(!showMobileNav)}
+            className="flex items-center gap-2 text-gray-700 font-medium"
+          >
+            <Menu className="h-5 w-5" />
+            Navigate Sections
+            <ChevronRight className={`h-4 w-4 transition-transform ${showMobileNav ? 'rotate-90' : ''}`} />
+          </button>
+        </div>
+
         {/* Navigation Sidebar */}
-        <div className="lg:w-1/4 bg-gray-50 p-4 border-r">
+        <div className={`lg:w-1/4 bg-gray-50 p-4 border-r lg:block ${showMobileNav ? 'block' : 'hidden'} lg:sticky lg:top-0 lg:h-[80vh] lg:overflow-y-auto`}>
           <nav className="space-y-2">
             {sections.map((section) => (
               <button
@@ -1006,7 +1030,7 @@ export default function ComprehensiveCulturalGuide({ locationContext }: Cultural
         </div>
 
         {/* Content Area */}
-        <div className="lg:w-3/4 p-6 max-h-[80vh] overflow-y-auto">
+        <div className="lg:w-3/4 p-6 max-h-[80vh] overflow-y-auto cultural-guide-content relative">
           <div className="space-y-8">
             {/* Overview Section */}
             <div id="section-overview" className="scroll-mt-4">
@@ -1047,7 +1071,27 @@ export default function ComprehensiveCulturalGuide({ locationContext }: Cultural
             <div id="section-arts" className="scroll-mt-4">
               {renderArtsSection()}
             </div>
+
+            {/* Back to Top Button */}
+            <div className="text-center py-8 border-t border-gray-200">
+              <button
+                onClick={scrollToTop}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-tropical-600 text-white rounded-lg hover:bg-tropical-700 transition-colors"
+              >
+                <ArrowUp className="h-5 w-5" />
+                Back to Navigation
+              </button>
+            </div>
           </div>
+
+          {/* Floating Back to Top Button (for mobile and long content) */}
+          <button
+            onClick={scrollToTop}
+            className="fixed bottom-6 right-6 lg:absolute lg:bottom-6 lg:right-6 bg-tropical-600 text-white p-3 rounded-full shadow-lg hover:bg-tropical-700 transition-all z-10"
+            title="Back to top"
+          >
+            <ArrowUp className="h-5 w-5" />
+          </button>
         </div>
       </div>
     </div>
