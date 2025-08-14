@@ -378,7 +378,12 @@ export class RealtimeTransitService {
 
   // Get real-time data for a complete trip
   async getTripRealtimeData(tripPlan: any): Promise<any> {
-    const realtimeData = {
+    const realtimeData: {
+      vehicles: VehiclePosition[];
+      arrivals: Map<string, StopArrival[]>;
+      alerts: ServiceAlert[];
+      lastUpdate: number;
+    } = {
       vehicles: [],
       arrivals: new Map(),
       alerts: [],
