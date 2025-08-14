@@ -154,7 +154,7 @@ export default function RouteDetails() {
     
     return {
       id: routeId,
-      name: `${typeParam?.charAt(0).toUpperCase() + typeParam?.slice(1) || 'Express'} Route to ${destinationParam?.split(',')[0] || 'Downtown'}`,
+      name: `${(typeParam ? typeParam.charAt(0).toUpperCase() + typeParam.slice(1) : 'Express')} Route to ${destinationParam?.split(',')[0] || 'Downtown'}`,
       from: originParam || 'Keeaumoku Street Area',
       to: destinationParam || 'Ala Moana Center Area', 
       duration: 28,
@@ -252,7 +252,7 @@ export default function RouteDetails() {
               ...stop,
               status: index < stepProgress ? 'completed' : index === stepProgress ? 'current' : 'upcoming'
             }));
-            setRouteData(prev => ({ ...prev, stops: updatedStops }));
+            setRouteData((prev: any) => ({ ...prev, stops: updatedStops }));
           }
         }
         

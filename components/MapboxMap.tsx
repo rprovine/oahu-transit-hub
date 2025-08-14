@@ -109,7 +109,7 @@ export default function MapboxMap({
     // Fit map to route
     if (coordinates.length > 1) {
       const bounds = new mapboxgl.LngLatBounds();
-      coordinates.forEach(coord => bounds.extend(coord as [number, number]));
+      coordinates.forEach((coord: any) => bounds.extend(coord as [number, number]));
       map.current.fitBounds(bounds, { padding: 50 });
     }
   };
@@ -189,7 +189,7 @@ export default function MapboxMap({
               </div>
             `)
         )
-        .addTo(map.current);
+        .addTo(map.current!);
 
       // Store current position marker for live tracking
       if (isLive && index === currentStepIndex) {
@@ -210,7 +210,7 @@ export default function MapboxMap({
 
         vehicleMarker.current = new mapboxgl.Marker(vehicleEl)
           .setLngLat(coords)
-          .addTo(map.current);
+          .addTo(map.current!);
       }
     });
   };
@@ -290,7 +290,7 @@ export default function MapboxMap({
                 ] as [number, number];
               });
               const bounds = new mapboxgl.LngLatBounds();
-              coordinates.forEach(coord => bounds.extend(coord));
+              coordinates.forEach((coord: any) => bounds.extend(coord));
               map.current?.fitBounds(bounds, { padding: 50 });
             }
           }}
