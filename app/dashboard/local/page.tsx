@@ -9,14 +9,6 @@ import {
 } from 'lucide-react';
 
 export default function LocalDashboard() {
-  const [origin, setOrigin] = useState('');
-  const [destination, setDestination] = useState('');
-  const [routes, setRoutes] = useState<any[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [originSuggestions, setOriginSuggestions] = useState<string[]>([]);
-  const [destinationSuggestions, setDestinationSuggestions] = useState<string[]>([]);
-  const [showOriginSuggestions, setShowOriginSuggestions] = useState(false);
-  const [showDestinationSuggestions, setShowDestinationSuggestions] = useState(false);
   const [savedLocations] = useState({
     home: '123 Keeaumoku St, Honolulu, HI',
     work: '1450 Ala Moana Blvd, Honolulu, HI'
@@ -111,161 +103,6 @@ export default function LocalDashboard() {
       console.error('Failed to load live data:', error);
       setLoading(false);
       // Keep existing mock data on error
-    }
-  };
-
-  const handleSearch = async () => {
-    if (!origin || !destination) return;
-    
-    setIsSearching(true);
-    
-    try {
-      // Geocode addresses
-      const [originGeocode, destGeocode] = await Promise.all([
-        fetch(`/api/geocode?q=${encodeURIComponent(origin)}`),
-        fetch(`/api/geocode?q=${encodeURIComponent(destination)}`)
-      ]);
-      
-      const [originData, destData] = await Promise.all([
-        originGeocode.json(),
-        destGeocode.json()
-      ]);
-      
-      if (originData.success && destData.success) {
-        const originCoords = originData.suggestions[0]?.center;
-        const destCoords = destData.suggestions[0]?.center;
-        
-        if (originCoords && destCoords) {
-          // Get directions from multiple sources
-          const [routingResponse, transitResponse] = await Promise.all([
-            fetch('/api/geocode', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                origin: { lat: originCoords[1], lon: originCoords[0] },
-                destination: { lat: destCoords[1], lon: destCoords[0] }
-              })
-            }),
-            fetch('/api/transit', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                action: 'plan_trip',
-                origin: { lat: originCoords[1], lon: originCoords[0] },
-                destination: { lat: destCoords[1], lon: destCoords[0] }
-              })
-            })
-          ]);
-          
-          const [routingData, transitData] = await Promise.all([
-            routingResponse.json(),
-            transitResponse.json()
-          ]);
-          
-          const newRoutes = [];
-          
-          // Add walking route
-          if (routingData.success && routingData.routes.walking?.length > 0) {
-            const walk = routingData.routes.walking[0];
-            newRoutes.push({
-              id: 'walk',
-              type: 'greenest',
-              duration: `${Math.round(walk.duration / 60)} min`,
-              modes: ['walk'],
-              steps: [`Walk ${(walk.distance / 1000).toFixed(1)} km to destination`],
-              cost: 'Free',
-              co2: `${(walk.distance * 0.0002).toFixed(1)} kg saved vs driving`
-            });
-          }
-          
-          // Add transit routes
-          if (transitData.success && transitData.tripPlan?.plans) {
-            transitData.tripPlan.plans.forEach((plan: any, index: number) => {
-              newRoutes.push({
-                id: `transit-${index}`,
-                type: index === 0 ? 'fastest' : 'cheapest',
-                duration: `${Math.round(plan.duration / 60)} min`,
-                modes: plan.legs.map((leg: any) => leg.mode.toLowerCase()),
-                steps: plan.legs.map((leg: any) => 
-                  leg.mode === 'TRANSIT' ? 
-                    `${leg.route} → ${leg.to.name}` :
-                    `${leg.mode} to ${leg.to.name} (${Math.round(leg.duration / 60)} min)`
-                ),
-                cost: `$${plan.cost || 2.75}`,
-                co2: '3.2 kg saved vs driving'
-              });
-            });
-          }
-          
-          setRoutes(newRoutes.length > 0 ? newRoutes : [
-            {
-              id: 'fallback',
-              type: 'fastest',
-              duration: '30 min',
-              modes: ['bus', 'walk'],
-              steps: ['Walk to bus stop', 'Take TheBus', 'Walk to destination'],
-              cost: '$2.75',
-              co2: '2.5 kg saved vs driving'
-            }
-          ]);
-        }
-      }
-    } catch (error) {
-      console.error('Route search error:', error);
-      // Fallback to mock data
-      setRoutes([
-        {
-          id: 'fallback',
-          type: 'fastest',
-          duration: '30 min',
-          modes: ['bus', 'walk'],
-          steps: ['Walk to bus stop', 'Take TheBus', 'Walk to destination'],
-          cost: '$2.75',
-          co2: '2.5 kg saved vs driving'
-        }
-      ]);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const selectRoute = async (route: any) => {
-    try {
-      // Track route selection in CRM
-      await fetch('/api/crm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'track_activity',
-          contactEmail: 'local@example.com', // Would get from auth context
-          activityType: 'route_selected',
-          details: {
-            route_type: route.type,
-            duration: route.duration,
-            cost: route.cost,
-            origin,
-            destination
-          }
-        })
-      });
-
-      // Navigate to route details page
-      const routeId = `${route.type}-${Date.now()}`;
-      
-      // Store route data in localStorage for the route page
-      const routeData = {
-        ...route,
-        origin,
-        destination,
-        selectedAt: new Date().toISOString()
-      };
-      localStorage.setItem(`route_${routeId}`, JSON.stringify(routeData));
-      
-      window.location.href = `/route/${routeId}?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&type=${route.type}`;
-    } catch (error) {
-      console.error('Failed to select route:', error);
-      // Still navigate even if tracking fails
-      window.location.href = `/route/selected?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
     }
   };
 
@@ -443,90 +280,34 @@ export default function LocalDashboard() {
           </div>
         </div>
 
-        {/* Trip Planning */}
+        {/* Quick Actions */}
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <h2 className="text-2xl font-bold mb-4 text-volcanic-900">Plan Your Commute</h2>
+          <h2 className="text-2xl font-bold mb-4 text-volcanic-900">Quick Actions</h2>
           
-          <div className="grid md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">From</label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  value={origin}
-                  onChange={(e) => setOrigin(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500"
-                  placeholder="Home, work, or address..."
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">To</label>
-              <div className="relative">
-                <MapPin className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500"
-                  placeholder="Destination..."
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <button 
-              onClick={handleSearch}
-              disabled={!origin || !destination || isSearching}
-              className="bg-ocean-600 text-white py-3 rounded-lg font-semibold hover:bg-ocean-700 transition-colors flex items-center justify-center gap-2 disabled:bg-gray-400"
-            >
-              <Navigation className="h-5 w-5" />
-              {isSearching ? 'Finding Routes...' : 'Find Routes'}
-            </button>
+          <div className="grid md:grid-cols-3 gap-4">
             <Link href="/trip-planner">
-              <button className="w-full bg-volcanic-600 text-white py-3 rounded-lg font-semibold hover:bg-volcanic-700 transition-colors flex items-center justify-center gap-2">
-                <Zap className="h-5 w-5" />
-                AI Trip Planner
+              <button className="w-full bg-ocean-600 text-white py-4 rounded-lg font-semibold hover:bg-ocean-700 transition-all hover:scale-105 flex flex-col items-center justify-center gap-2">
+                <Navigation className="h-8 w-8" />
+                <span>AI Trip Planner</span>
+                <span className="text-xs opacity-90">Plan your journey with real-time data</span>
               </button>
             </Link>
+            <Link href="/settings">
+              <button className="w-full bg-tropical-600 text-white py-4 rounded-lg font-semibold hover:bg-tropical-700 transition-all hover:scale-105 flex flex-col items-center justify-center gap-2">
+                <Settings className="h-8 w-8" />
+                <span>Manage Settings</span>
+                <span className="text-xs opacity-90">Save home, work & favorites</span>
+              </button>
+            </Link>
+            <button 
+              onClick={() => setSelectedTab('routes')}
+              className="w-full bg-volcanic-600 text-white py-4 rounded-lg font-semibold hover:bg-volcanic-700 transition-all hover:scale-105 flex flex-col items-center justify-center gap-2"
+            >
+              <Route className="h-8 w-8" />
+              <span>My Saved Routes</span>
+              <span className="text-xs opacity-90">View frequently used trips</span>
+            </button>
           </div>
-
-          {/* Route Results */}
-          {routes.length > 0 && (
-            <div className="mt-6 space-y-4">
-              <h3 className="text-lg font-semibold">Route Options</h3>
-              {routes.map((route) => (
-                <div key={route.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <span className="font-semibold text-lg">{route.duration}</span>
-                      <span className="ml-2 text-sm bg-ocean-100 text-ocean-800 px-2 py-1 rounded">
-                        {route.type}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold">{route.cost}</p>
-                      <p className="text-sm text-green-600">{route.co2}</p>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    {route.steps.map((step: string, idx: number) => (
-                      <p key={idx} className="text-sm text-gray-600">• {step}</p>
-                    ))}
-                  </div>
-                  <button 
-                    onClick={() => selectRoute(route)}
-                    className="mt-3 bg-ocean-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-ocean-700"
-                  >
-                    Select Route
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Live Data Dashboard */}
