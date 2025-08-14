@@ -1,6 +1,6 @@
 # 🌺 Oahu Transit Hub
 
-A comprehensive public transit application for Oahu, Hawaii, featuring real-time bus and rail tracking, AI-powered trip planning, and weather-aware routing optimized for both locals (Kama'āina) and tourists (Malihini).
+A comprehensive public transit application for Oahu, Hawaii, featuring real-time bus and rail tracking, AI-powered trip planning, location-aware services, HART Skyline integration, cultural education, and sustainability-focused transportation for both locals (Kama'āina) and tourists (Malihini).
 
 ![Next.js](https://img.shields.io/badge/Next.js-15.4-black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.6-blue)
@@ -19,8 +19,14 @@ A comprehensive public transit application for Oahu, Hawaii, featuring real-time
 ### Core Functionality
 - **🏠 Dual User Experience**: Tailored interfaces for Kama'āina (locals) and Malihini (tourists)
 - **🚌 Real-Time Transit Tracking**: Live bus and rail location updates via GTFS-RT APIs
+- **🌍 Location-Aware Services**: Real-time location integration for personalized recommendations
+- **🚂 HART Skyline Integration**: Complete rail system with 21 stations and multi-modal trip planning
 - **🌦️ Weather-Aware Routing**: Routes adjust based on current weather conditions
 - **🤖 AI Trip Assistant**: Natural language trip planning powered by Claude AI
+- **🏖️ Cultural Education**: Hawaiian names, pronunciations, and cultural significance for destinations
+- **🌱 Sustainability Focus**: Eco-friendly transportation options and carbon footprint tracking
+- **🏨 Partnership Features**: Hotel and tourism industry integration with guest services
+- **👥 Crowd Intelligence**: Smart alternatives during high-traffic times with safety alerts
 - **🔍 Address Autocomplete**: Smart location suggestions as you type
 - **⚡ Quick Access**: Home/Work shortcuts and saved routes
 - **⚙️ User Settings**: Save home, work, and favorite locations with notification preferences
@@ -29,9 +35,9 @@ A comprehensive public transit application for Oahu, Hawaii, featuring real-time
 - **📍 Real-Time Data Only**: No mock data - all information comes from live transit APIs
 - **🎯 Smart Route Classification**: Mathematically accurate fastest, cheapest, and greenest route identification
 
-### Integrated APIs
+### Integrated APIs & Services
 1. **TheBus GTFS-RT API**: Real-time Honolulu bus data and trip planning
-2. **HART Skyline GTFS-RT API**: Live rail system data and schedules
+2. **HART Skyline GTFS-RT API**: Live rail system data and schedules (21 stations)
 3. **StormGlass Marine API**: Ocean conditions for beach routes
 4. **OpenWeather API**: Real-time weather data
 5. **Mapbox**: Interactive mapping, geocoding, and navigation
@@ -39,6 +45,8 @@ A comprehensive public transit application for Oahu, Hawaii, featuring real-time
 7. **HubSpot CRM**: Customer lifecycle management and analytics
 8. **Google Places API**: Address validation and geocoding fallback
 9. **Supabase**: Backend infrastructure and authentication
+10. **Browser Geolocation API**: Real-time location tracking
+11. **Web Speech API**: Hawaiian pronunciation audio guides
 
 ### Security Features
 - **Rate Limiting**: Protection against API abuse using Upstash Redis
@@ -164,6 +172,59 @@ HART_API_KEY=your_hart_api_key
 ```
 
 **Status:** ✅ Live and functional with all integrations active
+
+## 🌺 Enhanced Features (Latest Update)
+
+### 🌍 Location-Aware Services
+- **Real-Time Location Integration**: Uses browser Geolocation API for precise positioning
+- **Smart Recommendations**: Location-based suggestions that adapt to time of day and preferences
+- **Regional Context**: Provides cultural and historical information based on current area
+- **Distance Calculations**: Shows walking distances to destinations from current location
+- **Weather Integration**: Location-specific weather data for outdoor activity planning
+
+### 🚂 HART Skyline Rail System
+- **Complete Station Database**: All 21 stations with Hawaiian names and pronunciations
+- **Multi-Modal Trip Planning**: Combines bus and rail options for optimal routing  
+- **Service Status**: Real-time operational status and segment updates
+- **Future Integration Ready**: Includes upcoming stations opening in late 2025
+- **Cultural Education**: Hawaiian names and meanings for all rail stations
+
+### 🏖️ Comprehensive Destination Database
+- **50+ Destinations**: Beaches, attractions, restaurants, museums, and cultural sites
+- **Cultural Information**: Hawaiian names, pronunciations, and cultural significance
+- **Audio Pronunciations**: Built-in text-to-speech for Hawaiian words
+- **Sustainability Tips**: Responsible tourism guidelines for each destination
+- **Crowd Management**: Real-time crowd levels with alternative suggestions
+- **Safety Integration**: Safety ratings and current alerts for each location
+
+### 🏨 Tourism Industry Partnership
+- **Hotel Integration**: Partnership API for guest services and recommendations
+- **Concierge Dashboard**: Real-time insights for hotel staff and tour operators
+- **Guest Activity Tracking**: Analytics for personalized recommendations
+- **Partnership Widget**: Embeddable component for hotel websites
+- **Sustainability Reporting**: Carbon footprint and local impact tracking
+
+### 🎯 Smart Tourist Experience
+- **Cultural Education**: Hawaiian language learning with audio guides
+- **Respectful Tourism**: Guidelines for visiting sacred and cultural sites
+- **Eco-Friendly Options**: Sustainable transportation and activity recommendations
+- **Favorites System**: Save and organize preferred destinations
+- **Multi-Tab Interface**: Explore, Favorites, and Cultural Guide sections
+- **Real-Time Updates**: Dynamic recommendations based on current conditions
+
+### 🌱 Sustainability Focus
+- **Carbon Footprint Tracking**: Shows environmental impact of transportation choices
+- **Reef-Safe Guidelines**: Marine conservation tips for beach activities  
+- **Local Business Support**: Promotes community-based tourism
+- **Public Transit Advocacy**: Encourages eco-friendly transportation options
+- **Conservation Education**: Environmental protection awareness integrated throughout
+
+### 🔒 Enhanced Safety Features
+- **Real-Time Safety Alerts**: Current conditions and crowd levels
+- **Emergency Information**: Quick access to local emergency services
+- **Weather Warnings**: Severe weather alerts affecting outdoor activities
+- **Cultural Sensitivity**: Respect guidelines for sacred sites and traditions
+- **Personal Safety**: Well-lit stops, safe walking routes, and accessibility information
 
 ## 📊 API Rate Limits
 
