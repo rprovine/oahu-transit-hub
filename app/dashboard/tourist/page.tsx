@@ -14,14 +14,8 @@ export default function TouristDashboard() {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [selectedDestination, setSelectedDestination] = useState<any>(null);
   const [selectedTab, setSelectedTab] = useState('main');
-  const [beachConditions, setBeachConditions] = useState({
-    surfHeight: '3-5 ft',
-    waterTemp: 79,
-    uvIndex: 8,
-    windSpeed: 12,
-    visibility: 'Excellent',
-    tideStatus: 'High Tide at 3:20 PM'
-  });
+  const [beachConditions, setBeachConditions] = useState<any>(null);
+  const [beachConditionsLoading, setBeachConditionsLoading] = useState(true);
 
   const destinations = {
     beaches: [
@@ -165,16 +159,16 @@ export default function TouristDashboard() {
     }
   };
   
-  const getDirections = async (destinationName: string, useCurrentLocation: boolean = false) => {
+  const getDirections = async (destinationName: string) => {
     try {
       let origin = '';
       
-      if (useCurrentLocation && navigator.geolocation) {
-        // Try to get actual user location
+      // Always try to get current location first for tourists
+      if (navigator.geolocation) {
         try {
           const position = await new Promise<GeolocationPosition>((resolve, reject) => {
             navigator.geolocation.getCurrentPosition(resolve, reject, {
-              timeout: 5000,
+              timeout: 3000,
               enableHighAccuracy: true
             });
           });
@@ -190,7 +184,7 @@ export default function TouristDashboard() {
         }
       }
       
-      // If geolocation failed or not requested, use saved location or common tourist area
+      // If geolocation failed, use saved location or common tourist area
       if (!origin) {
         const savedSettings = localStorage.getItem('oahu_transit_settings');
         if (savedSettings) {
@@ -214,7 +208,7 @@ export default function TouristDashboard() {
             origin,
             destination: destinationName,
             user_type: 'tourist',
-            used_geolocation: useCurrentLocation
+            used_geolocation: origin !== 'Waikiki Beach, Honolulu, HI'
           }
         })
       });
@@ -245,6 +239,7 @@ export default function TouristDashboard() {
   }, []);
   
   const loadBeachConditions = async () => {
+    setBeachConditionsLoading(true);
     try {
       // Get weather for multiple beach locations
       const beachLocations = [
@@ -278,12 +273,23 @@ export default function TouristDashboard() {
               visibility: marineData.marine.visibility > 8 ? 'Excellent' : marineData.marine.visibility > 5 ? 'Good' : 'Fair',
               tideStatus: 'Check local tide charts'
             });
+          } else {
+            console.log('Marine data not available');
+            setBeachConditions(null);
           }
+        } else {
+          console.log('Waikiki weather not found');
+          setBeachConditions(null);
         }
+      } else {
+        console.log('Weather API failed or returned no data');
+        setBeachConditions(null);
       }
     } catch (error) {
       console.error('Failed to load beach conditions:', error);
-      // Keep existing mock data on error
+      setBeachConditions(null);
+    } finally {
+      setBeachConditionsLoading(false);
     }
   };
 
@@ -470,27 +476,29 @@ export default function TouristDashboard() {
 
         {selectedTab === 'main' && (
           <>
-        {/* Today's Conditions Alert */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center gap-2 mb-2">
-            <Sun className="h-5 w-5 text-blue-600" />
-            <h3 className="font-semibold text-blue-800">Today's Ocean & Weather</h3>
+        {/* Today's Conditions Alert - Only show if real data available */}
+        {beachConditions && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <Sun className="h-5 w-5 text-blue-600" />
+              <h3 className="font-semibold text-blue-800">Today's Ocean & Weather</h3>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="text-blue-700">
+                <strong>Surf:</strong> {beachConditions.surfHeight}
+              </div>
+              <div className="text-blue-700">
+                <strong>Water:</strong> {beachConditions.waterTemp}°F
+              </div>
+              <div className="text-blue-700">
+                <strong>UV Index:</strong> {beachConditions.uvIndex} (High)
+              </div>
+              <div className="text-blue-700">
+                <strong>Wind:</strong> {beachConditions.windSpeed} mph
+              </div>
+            </div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div className="text-blue-700">
-              <strong>Surf:</strong> {beachConditions.surfHeight}
-            </div>
-            <div className="text-blue-700">
-              <strong>Water:</strong> {beachConditions.waterTemp}°F
-            </div>
-            <div className="text-blue-700">
-              <strong>UV Index:</strong> {beachConditions.uvIndex} (High)
-            </div>
-            <div className="text-blue-700">
-              <strong>Wind:</strong> {beachConditions.windSpeed} mph
-            </div>
-          </div>
-        </div>
+        )}
 
         {/* Discovery Categories */}
         <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
@@ -588,16 +596,14 @@ export default function TouristDashboard() {
                   </div>
                   
                   <div className="ml-4">
-                    <div className="space-y-2">
-                      <button 
-                        onClick={() => getDirections(dest.name, true)}
-                        className="bg-tropical-600 text-white px-6 py-3 rounded-lg hover:bg-tropical-700 w-full flex items-center justify-center gap-2"
-                      >
-                        <Navigation className="h-5 w-5" />
-                        Get Directions from Current Location
-                      </button>
-                    </div>
-                    <p className="text-xs text-center text-gray-500">{dest.safetyLevel}</p>
+                    <button 
+                      onClick={() => getDirections(dest.name)}
+                      className="bg-tropical-600 text-white px-6 py-3 rounded-lg hover:bg-tropical-700 flex items-center justify-center gap-2"
+                    >
+                      <Navigation className="h-5 w-5" />
+                      Get Directions
+                    </button>
+                    <p className="text-xs text-center text-gray-500 mt-2">{dest.safetyLevel}</p>
                   </div>
                 </div>
               </div>
@@ -606,31 +612,33 @@ export default function TouristDashboard() {
         </div>
 
         {/* Live Data Cards */}
-        <div className="grid md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-              <Waves className="h-5 w-5 text-blue-600" />
-              Beach Conditions
-            </h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span>Surf Height:</span>
-                <span className="font-medium">{beachConditions.surfHeight}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Water Temp:</span>
-                <span className="font-medium">{beachConditions.waterTemp}°F</span>
-              </div>
-              <div className="flex justify-between">
-                <span>UV Index:</span>
-                <span className="font-medium text-orange-600">High ({beachConditions.uvIndex})</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Visibility:</span>
-                <span className="font-medium text-green-600">{beachConditions.visibility}</span>
+        <div className={`grid ${beachConditions ? 'md:grid-cols-3' : 'md:grid-cols-2'} gap-6 mb-6`}>
+          {beachConditions && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <Waves className="h-5 w-5 text-blue-600" />
+                Beach Conditions
+              </h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>Surf Height:</span>
+                  <span className="font-medium">{beachConditions.surfHeight}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Water Temp:</span>
+                  <span className="font-medium">{beachConditions.waterTemp}°F</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>UV Index:</span>
+                  <span className="font-medium text-orange-600">High ({beachConditions.uvIndex})</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Visibility:</span>
+                  <span className="font-medium text-green-600">{beachConditions.visibility}</span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
