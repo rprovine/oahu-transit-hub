@@ -148,12 +148,7 @@ export default function RouteDetails() {
       });
     }
 
-    if (alerts.length === 0) {
-      alerts.push(
-        { type: 'success', message: '🚌 Route running on schedule with high reliability', priority: 'low' },
-        { type: 'success', message: '🌿 Excellent choice! You\'re helping reduce traffic congestion', priority: 'medium' }
-      );
-    }
+    // No default alerts - only show real data
 
     return {
       id: routeId,
@@ -162,179 +157,49 @@ export default function RouteDetails() {
       to: destination || storedData?.destination || 'Selected Destination',
       duration: duration,
       cost: cost,
-      distance: '7.4 miles',
-      nextDeparture: '5 minutes',
+      distance: liveData?.distance || storedData?.distance || null,
+      nextDeparture: liveData?.nextDeparture || storedData?.nextDeparture || null,
       estimatedArrival: arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       departureTime: departureTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      type: storedData?.type || 'fastest',
-      co2Saved: '4.1 kg',
-      caloriesBurned: Math.round(duration * 1.8),
-      walkingDistance: '0.8 miles',
-      transitMode: 'bus',
-      routeNumber: '8',
+      type: storedData?.type || 'route',
+      co2Saved: liveData?.co2Saved || storedData?.co2Saved || null,
+      caloriesBurned: liveData?.caloriesBurned || storedData?.caloriesBurned || null,
+      walkingDistance: liveData?.walkingDistance || storedData?.walkingDistance || null,
+      transitMode: liveData?.transitMode || storedData?.transitMode || 'transit',
+      routeNumber: liveData?.routeNumber || storedData?.routeNumber || null,
       steps: liveData?.legs || storedData?.steps || [],
       stops: generateStopsFromSteps(liveData?.legs || storedData?.steps || [], { origin, destination, totalTime: duration }),
       alerts: alerts,
-      liveUpdates: {
-        vehicleId: 'BUS_8_142',
-        currentLocation: 'On route to next stop',
-        delay: liveData?.delay || 0,
-        crowdLevel: 'light',
-        nextStop: 'Next scheduled stop',
-        confidence: liveData ? 98 : 85
-      }
+      liveUpdates: liveData?.liveUpdates || null
     };
   };
 
   const generateStopsFromSteps = (steps: any[], routeData?: any) => {
+    // Only return steps if we have real API data
     if (!steps.length) {
-      // Generate default stops if no steps provided
-      const now = new Date();
-      const departureTime = new Date(now.getTime() + 5 * 60000);
-      
-      return [
-        { 
-          name: `Starting Point - ${routeData?.origin || 'Current Location'}`, 
-          time: departureTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: 'upcoming',
-          type: 'walk',
-          duration: '3 min',
-          description: 'Walk to nearest bus stop'
-        },
-        { 
-          name: 'Keeaumoku St & Kapiolani Blvd', 
-          time: new Date(departureTime.getTime() + 3 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: 'upcoming',
-          type: 'bus_stop',
-          duration: '2 min wait',
-          description: 'Route 8 - Ala Moana Center',
-          routeInfo: 'Route 8 (Blue Line)'
-        },
-        { 
-          name: 'Ward Ave & Kapiolani Blvd', 
-          time: new Date(departureTime.getTime() + 12 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: 'upcoming',
-          type: 'bus_stop',
-          duration: '1 min',
-          description: 'Continue on Route 8'
-        },
-        { 
-          name: 'Ala Moana Center Transit Hub', 
-          time: new Date(departureTime.getTime() + 18 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: 'upcoming',
-          type: 'transfer',
-          duration: '5 min transfer',
-          description: 'Transfer to connecting route or final walk'
-        },
-        { 
-          name: `Final Destination - ${routeData?.destination || 'Selected Destination'}`, 
-          time: new Date(departureTime.getTime() + (routeData?.totalTime || 30) * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: 'upcoming',
-          type: 'destination',
-          duration: '5 min walk',
-          description: 'Arrive at destination'
-        }
-      ];
+      return []; // Return empty array - no mock data
     }
     
+    // Process real API steps only
     const now = new Date();
     return steps.map((step, index) => {
-      const time = new Date(now.getTime() + (index * 8 * 60000)); // 8 minutes between stops
+      const stepTime = step.startTime ? new Date(step.startTime) : new Date(now.getTime() + (step.duration || 0) * 1000);
+      
       return {
-        name: step.instruction || `Step ${index + 1}`,
-        time: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        name: step.from?.name || step.to?.name || step.instruction || `Transit Step ${index + 1}`,
+        time: stepTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         status: index === 0 ? 'current' : 'upcoming',
-        type: step.mode || 'transit',
-        duration: `${step.duration || 5} min`,
-        description: step.instruction || `Transit step ${index + 1}`
+        type: step.mode?.toLowerCase() || 'transit',
+        duration: step.duration ? `${Math.round(step.duration / 60)} min` : 'Unknown',
+        description: step.instruction || step.description || 'Transit instruction from API',
+        routeInfo: step.route || step.routeShortName || null
       };
     });
   };
 
   const getFallbackRouteData = () => {
-    const now = new Date();
-    const departureTime = new Date(now.getTime() + 5 * 60000); // 5 minutes from now
-    const arrivalTime = new Date(departureTime.getTime() + 28 * 60000); // 28 minutes later
-    
-    // Get actual origin/destination from URL params if available
-    const urlParams = new URLSearchParams(window.location.search);
-    const originParam = urlParams.get('origin');
-    const destinationParam = urlParams.get('destination');
-    const typeParam = urlParams.get('type');
-    
-    return {
-      id: routeId,
-      name: `${(typeParam ? typeParam.charAt(0).toUpperCase() + typeParam.slice(1) : 'Express')} Route to ${destinationParam?.split(',')[0] || 'Downtown'}`,
-      from: originParam || 'Keeaumoku Street Area',
-      to: destinationParam || 'Ala Moana Center Area', 
-      duration: 28,
-      cost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
-      distance: '7.4 miles',
-      nextDeparture: '5 minutes',
-      estimatedArrival: arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      departureTime: departureTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      co2Saved: '4.1 kg',
-      caloriesBurned: 52,
-      walkingDistance: '0.8 miles',
-      transitMode: 'bus',
-      routeNumber: '8',
-      stops: [
-        { 
-          name: `Starting Point - ${originParam?.split(',')[0] || 'Current Location'}`, 
-          time: departureTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: 'upcoming',
-          type: 'walk',
-          duration: '4 min',
-          description: 'Walk 0.3 miles to Keeaumoku St & Kapiolani Blvd'
-        },
-        { 
-          name: 'Keeaumoku St & Kapiolani Blvd', 
-          time: new Date(departureTime.getTime() + 4 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: 'upcoming',
-          type: 'bus_stop',
-          duration: '3 min wait',
-          description: 'Board Route 8 - Ala Moana Center',
-          routeInfo: 'Route 8 (Express Service)'
-        },
-        { 
-          name: 'Ward Ave & Kapiolani Blvd', 
-          time: new Date(departureTime.getTime() + 14 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: 'upcoming',
-          type: 'bus_stop',
-          duration: '1 min',
-          description: 'Continue on Route 8 • Next: Ala Moana'
-        },
-        { 
-          name: 'Ala Moana Center Transit Hub', 
-          time: new Date(departureTime.getTime() + 20 * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: 'upcoming',
-          type: 'transfer',
-          duration: '3 min',
-          description: 'Exit bus and prepare for final walk'
-        },
-        { 
-          name: `Final Destination - ${destinationParam?.split(',')[0] || 'Selected Destination'}`, 
-          time: arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: 'upcoming',
-          type: 'destination',
-          duration: 'Arrived',
-          description: 'Walk 0.5 miles to final destination'
-        }
-      ],
-      alerts: [
-        { type: 'success', message: '🚌 Route 8 is running on time with high reliability', priority: 'low' },
-        { type: 'success', message: '🌿 Excellent choice! You\'re saving 4.1 kg of CO₂ vs driving', priority: 'medium' },
-        { type: 'info', message: '☀️ Perfect weather for your trip - 78°F and sunny', priority: 'low' }
-      ],
-      liveUpdates: {
-        vehicleId: 'BUS_8_142',
-        currentLocation: 'Approaching Keeaumoku St stop',
-        delay: 0,
-        crowdLevel: 'light',
-        nextStop: 'Keeaumoku St & Kapiolani Blvd',
-        confidence: 98
-      }
-    };
+    // No fallback/mock data - return null to show proper error state
+    return null;
   };
 
   const startTracking = () => {
@@ -593,17 +458,18 @@ export default function RouteDetails() {
             </div>
           )}
 
-          {/* Enhanced Route Timeline */}
-          <div className="bg-white rounded-xl shadow-xl p-6 border border-gray-100">
-            <h3 className="text-xl font-bold mb-6 flex items-center gap-3">
-              <Route className="h-6 w-6 text-ocean-600" />
-              Journey Timeline
-              {isLive && (
-                <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium ml-2">
-                  🔴 Live
-                </span>
-              )}
-            </h3>
+          {/* Enhanced Route Timeline - Only show if we have real stops data */}
+          {routeData.stops && routeData.stops.length > 0 && (
+            <div className="bg-white rounded-xl shadow-xl p-6 border border-gray-100">
+              <h3 className="text-xl font-bold mb-6 flex items-center gap-3">
+                <Route className="h-6 w-6 text-ocean-600" />
+                Journey Timeline
+                {isLive && (
+                  <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium ml-2">
+                    🔴 Live
+                  </span>
+                )}
+              </h3>
             
             <div className="relative">
               {/* Progress Line */}
@@ -682,6 +548,7 @@ export default function RouteDetails() {
               </div>
             </div>
           </div>
+          )}
 
           {/* Enhanced Live Map */}
           <div className="bg-white rounded-xl shadow-xl p-6 border border-gray-100">
