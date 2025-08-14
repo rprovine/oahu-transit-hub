@@ -46,6 +46,7 @@ interface RouteLeg {
 }
 
 import { findDestination, TOURIST_DESTINATIONS } from '@/lib/data/tourist-destinations';
+import { DEFAULT_TRIP_FARE } from '@/lib/constants/transit-fares';
 
 export class MapboxService {
   private accessToken: string;
@@ -190,7 +191,7 @@ export class MapboxService {
                 to: { name: 'Destination' }
               }
             ],
-            cost: 2.75
+            cost: DEFAULT_TRIP_FARE // $3.00 with free transfers
           }
         ]
       };

@@ -9,6 +9,7 @@ import {
   Phone, Share, Bookmark, Zap, Leaf, TrendingUp, Wind
 } from 'lucide-react';
 import MapboxMap from '@/components/MapboxMap';
+import { DEFAULT_TRIP_FARE } from '@/lib/constants/transit-fares';
 
 export default function RouteDetails() {
   const params = useParams();
@@ -116,7 +117,7 @@ export default function RouteDetails() {
     
     // Use live data if available, otherwise stored data, otherwise defaults
     const duration = liveData?.duration ? Math.round(liveData.duration / 60) : storedData?.totalTime || 28;
-    const cost = liveData?.cost || storedData?.totalCost || 2.75;
+    const cost = liveData?.cost || storedData?.totalCost || DEFAULT_TRIP_FARE;
     const arrivalTime = new Date(departureTime.getTime() + duration * 60000);
 
     // Build alerts from real data
@@ -267,7 +268,7 @@ export default function RouteDetails() {
       from: originParam || 'Keeaumoku Street Area',
       to: destinationParam || 'Ala Moana Center Area', 
       duration: 28,
-      cost: 2.75,
+      cost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
       distance: '7.4 miles',
       nextDeparture: '5 minutes',
       estimatedArrival: arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),

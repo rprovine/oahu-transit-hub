@@ -9,6 +9,7 @@ import {
   Activity, AlertTriangle
 } from 'lucide-react';
 import RealtimeRouteCard from '@/components/RealtimeRouteCard';
+import { DEFAULT_TRIP_FARE, calculateTripCost } from '@/lib/constants/transit-fares';
 
 interface TripStep {
   mode: 'walk' | 'bus' | 'rail' | 'wait';
@@ -370,7 +371,7 @@ export default function TripPlanner() {
           validRoutes.push({
             id: `transit-${index}`,
             totalTime: Math.round(plan.duration / 60),
-            totalCost: plan.cost || 2.75,
+            totalCost: plan.cost || DEFAULT_TRIP_FARE, // $3.00 with free transfers
             co2Saved: Math.round((plan.distance || 5000) * 0.0008 * 100) / 100, // Calculate based on actual distance
             type: 'fastest', // Will be reassigned based on actual comparison
             steps: plan.legs.map((leg: any) => ({
@@ -439,7 +440,7 @@ export default function TripPlanner() {
           validRoutes.push({
             id: 'route-23',
             totalTime: 20,
-            totalCost: 3.00,
+            totalCost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
             co2Saved: 1.2,
             type: 'fastest',
             steps: [
@@ -453,7 +454,7 @@ export default function TripPlanner() {
           validRoutes.push({
             id: 'route-24',
             totalTime: 22,
-            totalCost: 3.00,
+            totalCost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
             co2Saved: 1.2,
             type: 'cheapest',
             steps: [
@@ -486,7 +487,7 @@ export default function TripPlanner() {
           validRoutes.push({
             id: 'route-23-return',
             totalTime: 20,
-            totalCost: 3.00,
+            totalCost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
             co2Saved: 1.2,
             type: 'fastest',
             steps: [
@@ -507,7 +508,7 @@ export default function TripPlanner() {
           validRoutes.push({
             id: 'route-c-1',
             totalTime: 55,
-            totalCost: 3.00,
+            totalCost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
             co2Saved: 4.5,
             type: 'fastest',
             steps: [
@@ -522,7 +523,7 @@ export default function TripPlanner() {
           validRoutes.push({
             id: 'route-41',
             totalTime: 45,
-            totalCost: 3.00,
+            totalCost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
             co2Saved: 4.2,
             type: 'cheapest',
             steps: [
@@ -537,7 +538,7 @@ export default function TripPlanner() {
           validRoutes.push({
             id: 'route-40',
             totalTime: 45,
-            totalCost: 3.00,
+            totalCost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
             co2Saved: 4.2,
             type: 'fastest',
             steps: [
@@ -550,7 +551,7 @@ export default function TripPlanner() {
           validRoutes.push({
             id: 'route-42',
             totalTime: 55,
-            totalCost: 3.00,
+            totalCost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
             co2Saved: 4.0,
             type: 'cheapest',
             steps: [

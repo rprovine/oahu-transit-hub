@@ -1,3 +1,5 @@
+import { DEFAULT_TRIP_FARE } from '@/lib/constants/transit-fares';
+
 interface BusRoute {
   route_id: string;
   route_short_name: string;
@@ -350,7 +352,7 @@ export class GTFSService {
               duration: 3300, // 55 minutes (realistic for Kapolei to Kalihi)
               walking_distance: 800,
               transfers: 1,
-              cost: 3.00,
+              cost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
               legs: [
                 {
                   mode: 'WALK',
@@ -390,7 +392,7 @@ export class GTFSService {
               duration: 2700, // 45 minutes (direct express route if available)
               walking_distance: 500,
               transfers: 0,
-              cost: 3.00,
+              cost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
               legs: [
                 {
                   mode: 'WALK',
@@ -430,7 +432,7 @@ export class GTFSService {
               duration: 2700, // 45 minutes (realistic for Route 40)
               walking_distance: 500,
               transfers: 0,
-              cost: 3.00,
+              cost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
               legs: [
                 {
                   mode: 'WALK',
@@ -461,7 +463,7 @@ export class GTFSService {
               duration: 3300, // 55 minutes (realistic for Route 42)
               walking_distance: 600,
               transfers: 0,
-              cost: 3.00,
+              cost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
               legs: [
                 {
                   mode: 'WALK',
