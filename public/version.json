@@ -1,0 +1,10 @@
+{
+  "version": "2.1.0",
+  "deployed": "2025-01-14T04:45:00Z",
+  "features": [
+    "Bus routes 40 and 42 for Ewa to Ala Moana",
+    "No walking routes over 3km",
+    "Fixed autocomplete",
+    "Real TheBus API integration"
+  ]
+}

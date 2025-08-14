@@ -489,6 +489,7 @@ export default function TripPlanner() {
           <div className="text-center mb-8">
             <h2 className="text-4xl font-bold text-volcanic-900 mb-4">AI-Powered Trip Planner</h2>
             <p className="text-xl text-gray-600">Plan your journey across Oahu with real-time data and smart routing</p>
+            <p className="text-xs text-gray-400 mt-2">v2.1 - Bus routes enforced, no long walks</p>
           </div>
 
           {/* Quick Access Buttons */}
