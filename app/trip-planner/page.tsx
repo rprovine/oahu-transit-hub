@@ -469,7 +469,7 @@ export default function TripPlanner() {
             type: 'fastest',
             steps: [
               { mode: 'walk', instruction: 'Walk to Kuhio Ave bus stop', duration: 3 },
-              { mode: 'bus', instruction: 'Route 23 to Diamond Head', duration: 12, route: '23' },
+              { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 12, route: '23' },
               { mode: 'walk', instruction: 'Walk to Diamond Head entrance', duration: 5 }
             ]
           });
@@ -483,7 +483,7 @@ export default function TripPlanner() {
             type: 'cheapest',
             steps: [
               { mode: 'walk', instruction: 'Walk to Kalakaua Ave bus stop', duration: 4 },
-              { mode: 'bus', instruction: 'Route 24 to Diamond Head', duration: 13, route: '24' },
+              { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 13, route: '24' },
               { mode: 'walk', instruction: 'Walk to Diamond Head entrance', duration: 5 }
             ]
           });
@@ -516,7 +516,7 @@ export default function TripPlanner() {
             type: 'fastest',
             steps: [
               { mode: 'walk', instruction: 'Walk to Diamond Head bus stop', duration: 5 },
-              { mode: 'bus', instruction: 'Route 23 to Waikiki', duration: 12, route: '23' },
+              { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 12, route: '23' },
               { mode: 'walk', instruction: 'Walk to destination', duration: 3 }
             ]
           });
@@ -538,7 +538,7 @@ export default function TripPlanner() {
             steps: [
               { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
               { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 35, route: 'C' },
-              { mode: 'bus', instruction: 'Transfer to Route 1 to Kalihi/Gulick', duration: 10, route: '1' },
+              { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 10, route: '1' },
               { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
             ]
           });
@@ -552,7 +552,7 @@ export default function TripPlanner() {
             type: 'cheapest',
             steps: [
               { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
-              { mode: 'bus', instruction: 'Route 41 to Kalihi via H-1', duration: 35, route: '41' },
+              { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 35, route: '41' },
               { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
             ]
           });
@@ -595,8 +595,8 @@ export default function TripPlanner() {
           type: 'greenest',
           steps: [
             { mode: 'walk', instruction: 'Walk to nearest Skyline station', duration: 8 },
-            { mode: 'rail', instruction: 'Skyline to Aloha Stadium', duration: 20, route: 'HART' },
-            { mode: 'bus', instruction: 'Transfer to Route 20/62 to Ala Moana', duration: 17, route: '20' },
+            { mode: 'rail', instruction: 'Real HART Skyline API integration needed', duration: 20, route: 'HART' },
+            { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 17, route: '20' },
             { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
           ]
         });
@@ -678,7 +678,7 @@ export default function TripPlanner() {
           type: 'fastest',
           steps: [
             { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
-            { mode: 'bus', instruction: 'Route 40 Express', duration: 35, route: '40' },
+            { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 35, route: 'API' },
             { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
           ]
         });
@@ -1076,7 +1076,7 @@ export default function TripPlanner() {
                               <RealtimeRouteCard
                                 key={`${route.id}-${idx}`}
                                 route={step.route!}
-                                destination={step.instruction.split(' to ')[1] || 'Downtown'}
+                                destination={step.instruction.split(' to ')[1] || 'API Integration Needed'}
                                 scheduledTime={`${step.duration} min`}
                                 className="bg-gray-50 border-gray-200"
                               />
