@@ -59,8 +59,8 @@ export class GTFSService {
   private hartApiKey: string;
 
   constructor() {
-    // TheBus requires AppID registration at http://api.thebus.org
-    this.theBusAppId = process.env.THEBUS_APP_ID || '';
+    // TheBus HEA API key
+    this.theBusAppId = process.env.THEBUS_APP_ID || '4F08EE2E-5612-41F9-B527-854EAD77AC2B';
     this.hartApiKey = process.env.HART_API_KEY || '';
   }
 
