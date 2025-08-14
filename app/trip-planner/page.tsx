@@ -246,19 +246,25 @@ export default function TripPlanner() {
         });
       }
       
-      // Add walking route only if we have real routing data
+      // Add walking route only if reasonable distance (max 3km)
       if (routingData.success && routingData.routes.walking?.length > 0) {
         const walkingRoute = routingData.routes.walking[0];
-        validRoutes.push({
-          id: 'walking',
-          totalTime: Math.round(walkingRoute.duration / 60),
-          totalCost: 0,
-          co2Saved: Math.round(walkingRoute.distance * 0.0004 * 100) / 100, // Walking saves more CO2 than driving
-          type: 'fastest', // Will be reassigned based on actual comparison
-          steps: [
-            { mode: 'walk', instruction: `Walk ${Math.round(walkingRoute.distance / 1000 * 10) / 10} km to destination`, duration: Math.round(walkingRoute.duration / 60) }
-          ]
-        });
+        const walkingDistanceKm = walkingRoute.distance / 1000;
+        const walkingTimeHours = walkingRoute.duration / 3600;
+        
+        // Only suggest walking if under 3km and under 45 minutes
+        if (walkingDistanceKm <= 3 && walkingTimeHours <= 0.75) {
+          validRoutes.push({
+            id: 'walking',
+            totalTime: Math.round(walkingRoute.duration / 60),
+            totalCost: 0,
+            co2Saved: Math.round(walkingRoute.distance * 0.0004 * 100) / 100,
+            type: 'fastest', // Will be reassigned based on actual comparison
+            steps: [
+              { mode: 'walk', instruction: `Walk ${Math.round(walkingDistanceKm * 10) / 10} km to destination`, duration: Math.round(walkingRoute.duration / 60) }
+            ]
+          });
+        }
       }
       
       // Correctly classify routes based on actual data
@@ -278,42 +284,17 @@ export default function TripPlanner() {
         processedRoutes = validRoutes;
       }
       
-      // If no routes found, use fallback
+      // If no viable routes found, show message instead of fake data
       if (processedRoutes.length === 0) {
-        processedRoutes = [{
-          id: 'fallback',
-          totalTime: 30,
-          totalCost: 2.75,
-          co2Saved: 2.5,
-          type: 'fastest',
-          steps: [
-            { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
-            { mode: 'bus', instruction: 'Take connecting bus routes', duration: 20 },
-            { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
-          ]
-        }];
+        // Don't show any routes rather than fake data
+        console.log('No viable transit routes found for this trip');
       }
       
       setRoutes(processedRoutes);
     } catch (error) {
       console.error('Trip planning error:', error);
-      // Fallback to mock data
-      const mockRoutes: RouteOption[] = [
-        {
-          id: 'fastest',
-          totalTime: 28,
-          totalCost: 2.75,
-          co2Saved: 2.1,
-          type: 'fastest',
-          steps: [
-            { mode: 'walk', instruction: 'Walk to Bus Stop A', duration: 3 },
-            { mode: 'wait', instruction: 'Wait for Route 8', duration: 2 },
-            { mode: 'bus', instruction: 'Route 8 to Ala Moana', duration: 18, route: '8', color: 'blue' },
-            { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
-          ]
-        }
-      ];
-      setRoutes(mockRoutes);
+      // No fallback to mock data - show empty results
+      setRoutes([]);
     } finally {
       setIsPlanning(false);
     }
@@ -601,6 +582,30 @@ export default function TripPlanner() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+          
+          {/* No Routes Found Message */}
+          {origin && destination && !isPlanning && routes.length === 0 && (
+            <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+              <div className="text-gray-400 mb-4">
+                <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">No Viable Routes Found</h3>
+              <p className="text-gray-600 mb-4">
+                We couldn't find any reasonable transit routes for this trip. This may be because:
+              </p>
+              <ul className="text-sm text-gray-600 text-left max-w-md mx-auto space-y-1">
+                <li>• The distance is too far for walking (over 3km)</li>
+                <li>• No direct transit connections are available</li>
+                <li>• Transit APIs are temporarily unavailable</li>
+                <li>• The locations are outside the transit service area</li>
+              </ul>
+              <p className="text-sm text-gray-500 mt-4">
+                Try adjusting your start or end location, or consider alternative transportation methods.
+              </p>
             </div>
           )}
         </div>
