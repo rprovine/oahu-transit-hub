@@ -146,11 +146,11 @@ export default function TripPlanner() {
       // Try geocoding API for better results even for 1 character
       if (value.length >= 1) {
         try {
-          const response = await fetch(`/api/geocode?q=${encodeURIComponent(value + ', Oahu, HI')}`);
+          const response = await fetch(`/api/geocode?q=${encodeURIComponent(value)}`);
           const data = await response.json();
           if (data.success && data.suggestions?.length > 0) {
             const apiSuggestions = data.suggestions.map((s: any) => s.place_name);
-            // Combine and deduplicate
+            // Combine and deduplicate, prioritizing API results
             const combined = [...new Set([...apiSuggestions.slice(0, 5), ...immediateResults.slice(0, 3)])];
             setOriginSuggestions(combined);
             setShowOriginSuggestions(true);
@@ -196,11 +196,11 @@ export default function TripPlanner() {
       // Try geocoding API for better results even for 1 character
       if (value.length >= 1) {
         try {
-          const response = await fetch(`/api/geocode?q=${encodeURIComponent(value + ', Oahu, HI')}`);
+          const response = await fetch(`/api/geocode?q=${encodeURIComponent(value)}`);
           const data = await response.json();
           if (data.success && data.suggestions?.length > 0) {
             const apiSuggestions = data.suggestions.map((s: any) => s.place_name);
-            // Combine and deduplicate
+            // Combine and deduplicate, prioritizing API results
             const combined = [...new Set([...apiSuggestions.slice(0, 5), ...immediateResults.slice(0, 3)])];
             setDestinationSuggestions(combined);
             setShowDestinationSuggestions(true);
@@ -246,12 +246,21 @@ export default function TripPlanner() {
         throw new Error('Failed to geocode addresses');
       }
       
+      // Log the suggestions for debugging
+      console.log('Origin suggestions:', originData.suggestions);
+      console.log('Destination suggestions:', destData.suggestions);
+      
       const originCoords = originData.suggestions[0]?.center;
       const destCoords = destData.suggestions[0]?.center;
       
       if (!originCoords || !destCoords) {
         throw new Error('Could not find coordinates for addresses');
       }
+      
+      console.log('Selected coordinates:', {
+        origin: { address: origin, coords: originCoords },
+        destination: { address: destination, coords: destCoords }
+      });
       
       // Get AI trip plan using Claude
       const aiResponse = await fetch('/api/ai', {
@@ -374,6 +383,79 @@ export default function TripPlanner() {
                             destination.toLowerCase().includes('kalihi');
       
       if (needsBusRoutes || validRoutes.length === 0) {
+        // Check for specific tourist routes
+        const isWaikikiToDiamondHead = 
+          (origin.toLowerCase().includes('waikiki') && destination.toLowerCase().includes('diamond')) ||
+          (origin.toLowerCase().includes('waikiki') && destination.toLowerCase().includes('head'));
+        
+        const isDiamondHeadToWaikiki = 
+          (origin.toLowerCase().includes('diamond') && destination.toLowerCase().includes('waikiki')) ||
+          (origin.toLowerCase().includes('head') && destination.toLowerCase().includes('waikiki'));
+        
+        if (isWaikikiToDiamondHead) {
+          console.log('Adding Waikiki to Diamond Head routes');
+          // Route 23 or 24 - Direct bus routes
+          validRoutes.push({
+            id: 'route-23',
+            totalTime: 20,
+            totalCost: 3.00,
+            co2Saved: 1.2,
+            type: 'fastest',
+            steps: [
+              { mode: 'walk', instruction: 'Walk to Kuhio Ave bus stop', duration: 3 },
+              { mode: 'bus', instruction: 'Route 23 to Diamond Head', duration: 12, route: '23' },
+              { mode: 'walk', instruction: 'Walk to Diamond Head entrance', duration: 5 }
+            ]
+          });
+          
+          // Alternative with Route 24
+          validRoutes.push({
+            id: 'route-24',
+            totalTime: 22,
+            totalCost: 3.00,
+            co2Saved: 1.2,
+            type: 'cheapest',
+            steps: [
+              { mode: 'walk', instruction: 'Walk to Kalakaua Ave bus stop', duration: 4 },
+              { mode: 'bus', instruction: 'Route 24 to Diamond Head', duration: 13, route: '24' },
+              { mode: 'walk', instruction: 'Walk to Diamond Head entrance', duration: 5 }
+            ]
+          });
+          
+          // Walking option if close enough (it's about 2.5km)
+          if (routingData.success && routingData.routes?.walking?.length > 0) {
+            const walkingRoute = routingData.routes.walking[0];
+            const walkingDistanceKm = walkingRoute.distance / 1000;
+            if (walkingDistanceKm <= 3) {
+              validRoutes.push({
+                id: 'walking',
+                totalTime: 35,
+                totalCost: 0,
+                co2Saved: 1.0,
+                type: 'greenest',
+                steps: [
+                  { mode: 'walk', instruction: `Walk ${Math.round(walkingDistanceKm * 10) / 10} km along Kalakaua Ave and Diamond Head Rd`, duration: 35 }
+                ]
+              });
+            }
+          }
+        } else if (isDiamondHeadToWaikiki) {
+          console.log('Adding Diamond Head to Waikiki routes');
+          // Reverse routes
+          validRoutes.push({
+            id: 'route-23-return',
+            totalTime: 20,
+            totalCost: 3.00,
+            co2Saved: 1.2,
+            type: 'fastest',
+            steps: [
+              { mode: 'walk', instruction: 'Walk to Diamond Head bus stop', duration: 5 },
+              { mode: 'bus', instruction: 'Route 23 to Waikiki', duration: 12, route: '23' },
+              { mode: 'walk', instruction: 'Walk to destination', duration: 3 }
+            ]
+          });
+        }
+        
         // Check if this is Kapolei to Kalihi trip
         const isKapoleiToKalihi = (origin.toLowerCase().includes('kapolei') || origin.toLowerCase().includes('palala')) &&
                                   (destination.toLowerCase().includes('gulick') || destination.toLowerCase().includes('kalihi'));

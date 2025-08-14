@@ -45,6 +45,8 @@ interface RouteLeg {
   steps: RouteStep[];
 }
 
+import { findDestination, TOURIST_DESTINATIONS } from '@/lib/data/tourist-destinations';
+
 export class MapboxService {
   private accessToken: string;
   private baseUrl = 'https://api.mapbox.com';
@@ -55,39 +57,66 @@ export class MapboxService {
 
   async geocodeAddress(query: string, bias?: [number, number]): Promise<LocationSuggestion[]> {
     try {
-      // Bias results toward Oahu
-      const proximity = bias || [-157.8583, 21.3099]; // Honolulu coordinates
-      const bbox = [-158.2878,21.2044,-157.6417,21.7135]; // Oahu bounding box
+      // First, check if this is a known tourist destination
+      const touristDest = findDestination(query);
+      if (touristDest) {
+        // Return the verified coordinates as the first result
+        const touristSuggestion: LocationSuggestion = {
+          id: `tourist-${touristDest.name}`,
+          text: touristDest.name,
+          place_name: `${touristDest.name}, Honolulu, HI`,
+          center: touristDest.coordinates,
+          properties: {
+            category: touristDest.category,
+            landmark: true
+          }
+        };
+        
+        // Also get Mapbox suggestions but tourist destination comes first
+        const mapboxSuggestions = await this.getMapboxSuggestions(query, bias);
+        return [touristSuggestion, ...mapboxSuggestions.filter(s => 
+          !s.text.toLowerCase().includes(touristDest.name.toLowerCase())
+        )];
+      }
       
-      const response = await fetch(
-        `${this.baseUrl}/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?` +
-        `access_token=${this.accessToken}&` +
-        `proximity=${proximity[0]},${proximity[1]}&` +
-        `bbox=${bbox.join(',')}&` +
-        `country=US&` +
-        `limit=8&` +
-        `types=address,poi,place`
-      );
-
-      if (!response.ok) throw new Error('Geocoding failed');
-
-      const data = await response.json();
-      
-      return data.features.map((feature: any) => ({
-        id: feature.id,
-        text: feature.text,
-        place_name: feature.place_name,
-        center: feature.center,
-        properties: {
-          category: feature.properties?.category,
-          landmark: feature.properties?.landmark,
-          address: feature.properties?.address
-        }
-      }));
+      // If not a known tourist destination, use Mapbox API
+      return await this.getMapboxSuggestions(query, bias);
     } catch (error) {
       console.error('Geocoding error:', error);
       return this.getFallbackSuggestions(query);
     }
+  }
+
+  private async getMapboxSuggestions(query: string, bias?: [number, number]): Promise<LocationSuggestion[]> {
+    // Bias results toward Oahu
+    const proximity = bias || [-157.8583, 21.3099]; // Honolulu coordinates
+    const bbox = [-158.2878,21.2044,-157.6417,21.7135]; // Oahu bounding box
+    
+    const response = await fetch(
+      `${this.baseUrl}/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?` +
+      `access_token=${this.accessToken}&` +
+      `proximity=${proximity[0]},${proximity[1]}&` +
+      `bbox=${bbox.join(',')}&` +
+      `country=US&` +
+      `limit=8&` +
+      `types=address,poi,place`
+    );
+
+    if (!response.ok) throw new Error('Geocoding failed');
+
+    const data = await response.json();
+    
+    return data.features.map((feature: any) => ({
+      id: feature.id,
+      text: feature.text,
+      place_name: feature.place_name,
+      center: feature.center,
+      properties: {
+        category: feature.properties?.category,
+        landmark: feature.properties?.landmark,
+        address: feature.properties?.address
+      }
+    }));
   }
 
   async getDirections(options: RouteOptions): Promise<Route[]> {
@@ -172,25 +201,22 @@ export class MapboxService {
   }
 
   private getFallbackSuggestions(query: string): LocationSuggestion[] {
-    const oahuLocations = [
-      { text: 'Waikiki Beach', place_name: 'Waikiki Beach, Honolulu, HI', center: [-157.8293, 21.2793] },
-      { text: 'Ala Moana Center', place_name: 'Ala Moana Center, Honolulu, HI', center: [-157.8420, 21.2906] },
-      { text: 'University of Hawaii', place_name: 'University of Hawaii at Manoa, Honolulu, HI', center: [-157.8167, 21.2969] },
-      { text: 'Diamond Head', place_name: 'Diamond Head State Monument, Honolulu, HI', center: [-157.8055, 21.2619] },
-      { text: 'Pearl Harbor', place_name: 'Pearl Harbor, HI', center: [-157.9623, 21.3649] },
-      { text: 'Kailua Beach', place_name: 'Kailua Beach, Kailua, HI', center: [-157.7394, 21.3972] },
-      { text: 'North Shore', place_name: 'North Shore, Haleiwa, HI', center: [-158.0430, 21.5944] }
-    ].filter(loc => 
-      loc.text.toLowerCase().includes(query.toLowerCase()) ||
-      loc.place_name.toLowerCase().includes(query.toLowerCase())
+    // Use our verified tourist destinations
+    const normalizedQuery = query.toLowerCase().trim();
+    const matchingDestinations = TOURIST_DESTINATIONS.filter(dest => 
+      dest.name.toLowerCase().includes(normalizedQuery) ||
+      dest.aliases.some(alias => alias.toLowerCase().includes(normalizedQuery))
     );
 
-    return oahuLocations.map((loc, index) => ({
+    return matchingDestinations.map((dest, index) => ({
       id: `fallback-${index}`,
-      text: loc.text,
-      place_name: loc.place_name,
-      center: loc.center as [number, number],
-      properties: {}
+      text: dest.name,
+      place_name: `${dest.name}, Honolulu, HI`,
+      center: dest.coordinates,
+      properties: {
+        category: dest.category,
+        landmark: true
+      }
     }));
   }
 
