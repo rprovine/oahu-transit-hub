@@ -55,6 +55,20 @@ export default function TripPlanner() {
     if (urlOrigin) setOrigin(urlOrigin);
     if (urlDestination) setDestination(urlDestination);
   }, []);
+  
+  // Close autocomplete when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.autocomplete-container')) {
+        setShowOriginSuggestions(false);
+        setShowDestinationSuggestions(false);
+      }
+    };
+    
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   const popularDestinations = [
     { name: 'Waikiki Beach', icon: '🏖️', category: 'Beach' },
@@ -440,13 +454,17 @@ export default function TripPlanner() {
             <div className="grid md:grid-cols-2 gap-6 mb-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">From</label>
-                <div className="relative">
+                <div className="relative autocomplete-container">
                   <MapPin className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                   <input
                     type="text"
                     value={origin}
                     onChange={(e) => handleOriginChange(e.target.value)}
-                    onFocus={() => origin.length > 2 && setShowOriginSuggestions(true)}
+                    onFocus={() => {
+                      if (origin.length > 2) {
+                        handleOriginChange(origin); // Trigger autocomplete on focus
+                      }
+                    }}
                     className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500"
                     placeholder="Enter starting location..."
                   />
@@ -469,13 +487,17 @@ export default function TripPlanner() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">To</label>
-                <div className="relative">
+                <div className="relative autocomplete-container">
                   <MapPin className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                   <input
                     type="text"
                     value={destination}
                     onChange={(e) => handleDestinationChange(e.target.value)}
-                    onFocus={() => destination.length > 2 && setShowDestinationSuggestions(true)}
+                    onFocus={() => {
+                      if (destination.length > 2) {
+                        handleDestinationChange(destination); // Trigger autocomplete on focus
+                      }
+                    }}
                     className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ocean-500 focus:border-ocean-500"
                     placeholder="Enter destination..."
                   />
