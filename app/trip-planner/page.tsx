@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { 
   MapPin, Navigation, Clock, DollarSign, Zap, 
   Bus, Train, Palmtree, Waves, Mountain, Camera,
-  ChevronRight, Star, ArrowRight, Route, Users
+  ChevronRight, Star, ArrowRight, Route, Users,
+  Activity, AlertTriangle
 } from 'lucide-react';
+import RealtimeRouteCard from '@/components/RealtimeRouteCard';
 
 interface TripStep {
   mode: 'walk' | 'bus' | 'rail' | 'wait';
@@ -23,6 +25,7 @@ interface RouteOption {
   co2Saved: number;
   steps: TripStep[];
   type: 'fastest' | 'cheapest' | 'greenest';
+  realtimeData?: any;
 }
 
 export default function TripPlanner() {
@@ -41,6 +44,7 @@ export default function TripPlanner() {
     work: '',
     favorites: [] as string[]
   });
+  const [realtimeUpdates, setRealtimeUpdates] = useState<Map<string, any>>(new Map());
 
   // Load saved locations and URL parameters on mount
   useEffect(() => {
@@ -855,21 +859,53 @@ export default function TripPlanner() {
                   </div>
 
                   {/* Route Steps */}
-                  <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                    {route.steps.map((step, stepIdx) => (
-                      <div key={stepIdx} className="flex items-center gap-2 flex-shrink-0">
-                        <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg">
-                          <span className="text-lg">{getModeIcon(step.mode)}</span>
-                          <div className="text-center">
-                            <p className="text-xs font-medium">{step.instruction}</p>
-                            <p className="text-xs text-gray-600">{step.duration} min</p>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                      {route.steps.map((step, stepIdx) => (
+                        <div key={stepIdx} className="flex items-center gap-2 flex-shrink-0">
+                          <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg">
+                            <span className="text-lg">{getModeIcon(step.mode)}</span>
+                            <div className="text-center">
+                              <p className="text-xs font-medium">{step.instruction}</p>
+                              <p className="text-xs text-gray-600">{step.duration} min</p>
+                              {step.mode === 'bus' && step.route && (
+                                <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
+                                  <Activity className="w-3 h-3 animate-pulse" />
+                                  <span>Live tracking</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
+                          {stepIdx < route.steps.length - 1 && (
+                            <ChevronRight className="h-4 w-4 text-gray-400" />
+                          )}
                         </div>
-                        {stepIdx < route.steps.length - 1 && (
-                          <ChevronRight className="h-4 w-4 text-gray-400" />
-                        )}
+                      ))}
+                    </div>
+                    
+                    {/* Real-time Updates for Bus Routes */}
+                    {route.steps.filter(s => s.mode === 'bus' && s.route).length > 0 && (
+                      <div className="border-t pt-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Activity className="w-4 h-4 text-green-500 animate-pulse" />
+                          <span className="text-sm font-medium text-gray-700">Live Updates</span>
+                        </div>
+                        <div className="space-y-2">
+                          {route.steps
+                            .filter(step => step.mode === 'bus' && step.route)
+                            .map((step, idx) => (
+                              <RealtimeRouteCard
+                                key={`${route.id}-${idx}`}
+                                route={step.route!}
+                                destination={step.instruction.split(' to ')[1] || 'Downtown'}
+                                scheduledTime={`${step.duration} min`}
+                                className="bg-gray-50 border-gray-200"
+                              />
+                            ))
+                          }
+                        </div>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               ))}

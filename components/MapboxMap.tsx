@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import RealtimeMapLayer from './RealtimeMapLayer';
 
 interface MapboxMapProps {
   center?: [number, number];
@@ -13,6 +14,8 @@ interface MapboxMapProps {
   className?: string;
   origin?: string;
   destination?: string;
+  routeIds?: string[];
+  showRealtimeVehicles?: boolean;
 }
 
 export default function MapboxMap({ 
@@ -23,7 +26,9 @@ export default function MapboxMap({
   currentStepIndex = 0,
   className = "w-full h-full rounded-xl",
   origin,
-  destination
+  destination,
+  routeIds = [],
+  showRealtimeVehicles = false
 }: MapboxMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -399,6 +404,16 @@ export default function MapboxMap({
         <div className="absolute top-4 left-4 bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-semibold animate-pulse">
           🔴 Live Tracking
         </div>
+      )}
+      
+      {/* Real-time vehicle layer */}
+      {showRealtimeVehicles && routeIds.length > 0 && (
+        <RealtimeMapLayer
+          map={map.current}
+          routeIds={routeIds}
+          showVehicles={true}
+          showStops={false}
+        />
       )}
       
       {/* Map controls overlay */}

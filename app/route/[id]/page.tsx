@@ -709,8 +709,8 @@ export default function RouteDetails() {
             <div className="h-80 rounded-xl overflow-hidden border border-gray-200">
               <MapboxMap
                 route={routeData}
-                origin={routeData.from || origin}
-                destination={routeData.to || destination}
+                origin={routeData.from}
+                destination={routeData.to}
                 isLive={isLive}
                 currentStepIndex={currentStepIndex}
                 className="w-full h-full"
