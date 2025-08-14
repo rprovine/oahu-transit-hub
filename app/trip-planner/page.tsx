@@ -444,20 +444,8 @@ export default function TripPlanner() {
         }
       }
       
-      // ALWAYS add bus routes for ANY Oahu trip over 3km
-      const needsBusRoutes = origin.toLowerCase().includes('kapolei') ||
-                            origin.toLowerCase().includes('palala') || 
-                            origin.toLowerCase().includes('ewa') || 
-                            origin.toLowerCase().includes('91-1020') ||
-                            origin.toLowerCase().includes('gulick') ||
-                            origin.toLowerCase().includes('kalihi') ||
-                            destination.toLowerCase().includes('ala') ||
-                            destination.toLowerCase().includes('gulick') ||
-                            destination.toLowerCase().includes('kalihi');
-      
-      if (needsBusRoutes || validRoutes.length === 0) {
-        // Check for specific tourist routes
-        const isWaikikiToDiamondHead = 
+      // After checking GTFS service, only use honest results - no more hardcoded mock data
+      // All transit data should come from the GTFS service above 
           (origin.toLowerCase().includes('waikiki') && destination.toLowerCase().includes('diamond')) ||
           (origin.toLowerCase().includes('waikiki') && destination.toLowerCase().includes('head'));
         
@@ -544,7 +532,7 @@ export default function TripPlanner() {
             type: 'fastest',
             steps: [
               { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
-              { mode: 'bus', instruction: 'Route C Country Express to Downtown', duration: 35, route: 'C' },
+              { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 35, route: 'C' },
               { mode: 'bus', instruction: 'Transfer to Route 1 to Kalihi/Gulick', duration: 10, route: '1' },
               { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
             ]
@@ -574,7 +562,7 @@ export default function TripPlanner() {
             type: 'fastest',
             steps: [
               { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
-              { mode: 'bus', instruction: 'Route 40 Express', duration: 35, route: '40' },
+              { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 35, route: 'API' },
               { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
             ]
           });
@@ -587,7 +575,7 @@ export default function TripPlanner() {
             type: 'cheapest',
             steps: [
               { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
-              { mode: 'bus', instruction: 'Route 42', duration: 45, route: '42' },
+              { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 45, route: 'API' },
               { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
             ]
           });
