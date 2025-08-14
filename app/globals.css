@@ -1,6 +1,9 @@
-@import "tailwindcss";
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
 
-@theme {
+@layer base {
+  :root {
   --color-ocean-50: #e6f7ff;
   --color-ocean-100: #bae7ff;
   --color-ocean-200: #91d5ff;
@@ -45,6 +48,7 @@
   --color-volcanic-800: #27272a;
   --color-volcanic-900: #18181b;
   --color-volcanic-950: #09090b;
+  }
 }
 
 @keyframes sway {
