@@ -1,10 +1,11 @@
 {
-  "version": "2.1.0",
-  "deployed": "2025-01-14T04:45:00Z",
+  "version": "2.3.0",
+  "deployed": "2025-01-14T06:30:00Z",
   "features": [
-    "Bus routes 40 and 42 for Ewa to Ala Moana",
-    "No walking routes over 3km",
-    "Fixed autocomplete",
-    "Real TheBus API integration"
+    "Fixed saved locations loading in trip planner",
+    "Enhanced autocomplete - triggers on single character",
+    "Quick access buttons properly use saved addresses",
+    "No walking routes over 3km - strict enforcement",
+    "Real TheBus and Skyline integration"
   ]
 }

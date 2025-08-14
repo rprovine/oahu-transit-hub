@@ -3,5 +3,40 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "regions": ["sfo1"]
+  "regions": ["sfo1"],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "s-maxage=0, stale-while-revalidate"
+        },
+        {
+          "key": "X-Version",
+          "value": "2.3.0"
+        }
+      ]
+    },
+    {
+      "source": "/trip-planner",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    }
+  ],
+  "functions": {
+    "app/api/ai/route.ts": {
+      "maxDuration": 30
+    },
+    "app/api/transit/route.ts": {
+      "maxDuration": 10
+    },
+    "app/api/geocode/route.ts": {
+      "maxDuration": 10
+    }
+  }
 }

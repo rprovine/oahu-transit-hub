@@ -47,12 +47,16 @@ export default function TripPlanner() {
     // Load saved locations from localStorage
     try {
       const savedSettings = localStorage.getItem('oahu_transit_settings');
+      console.log('Loading saved settings:', savedSettings);
       if (savedSettings) {
         const settings = JSON.parse(savedSettings);
+        console.log('Parsed settings:', settings);
         if (settings.locations && settings.locations.length > 0) {
           const homeLocation = settings.locations.find((loc: any) => loc.type === 'home');
           const workLocation = settings.locations.find((loc: any) => loc.type === 'work');
           const favoriteLocations = settings.locations.filter((loc: any) => loc.type === 'favorite');
+          
+          console.log('Found locations:', { home: homeLocation, work: workLocation });
           
           setSavedLocations({
             home: homeLocation?.address || '',
@@ -115,32 +119,41 @@ export default function TripPlanner() {
   const handleOriginChange = async (value: string) => {
     setOrigin(value);
     
-    // Show suggestions even for 1 character
+    // Show suggestions immediately on any input
     if (value.length > 0) {
-      // Always show Oahu locations immediately
-      const suggestions = oahuLocations.filter(location => 
+      // First, show local Oahu locations immediately
+      const localSuggestions = oahuLocations.filter(location => 
         location.toLowerCase().includes(value.toLowerCase())
       );
       
-      if (suggestions.length > 0) {
-        setOriginSuggestions(suggestions.slice(0, 8));
+      // Add popular destinations that match
+      const popularMatches = popularDestinations
+        .filter(dest => dest.name.toLowerCase().includes(value.toLowerCase()))
+        .map(dest => dest.name);
+      
+      // Combine local suggestions
+      const immediateResults = [...new Set([...localSuggestions, ...popularMatches])].slice(0, 8);
+      
+      if (immediateResults.length > 0) {
+        setOriginSuggestions(immediateResults);
         setShowOriginSuggestions(true);
       }
       
-      // Try geocoding API for better results after 2 characters
-      if (value.length > 2) {
+      // Try geocoding API for better results even for 1 character
+      if (value.length >= 1) {
         try {
-          const response = await fetch(`/api/geocode?q=${encodeURIComponent(value)}`);
+          const response = await fetch(`/api/geocode?q=${encodeURIComponent(value + ', Oahu, HI')}`);
           const data = await response.json();
           if (data.success && data.suggestions?.length > 0) {
             const apiSuggestions = data.suggestions.map((s: any) => s.place_name);
             // Combine and deduplicate
-            const combined = [...new Set([...apiSuggestions.slice(0, 5), ...suggestions.slice(0, 3)])];
+            const combined = [...new Set([...apiSuggestions.slice(0, 5), ...immediateResults.slice(0, 3)])];
             setOriginSuggestions(combined);
             setShowOriginSuggestions(true);
           }
         } catch (error) {
           console.error('Geocoding error:', error);
+          // Keep showing immediate results even if API fails
         }
       }
     } else {
@@ -151,38 +164,46 @@ export default function TripPlanner() {
   const handleDestinationChange = async (value: string) => {
     setDestination(value);
     
-    // Show suggestions even for 1 character
+    // Show suggestions immediately on any input
     if (value.length > 0) {
-      // Always show Oahu locations immediately  
-      const suggestions = oahuLocations.filter(location => 
+      // First, show local Oahu locations immediately  
+      const localSuggestions = oahuLocations.filter(location => 
         location.toLowerCase().includes(value.toLowerCase())
       );
       
+      // Add popular destinations that match
+      const popularMatches = popularDestinations
+        .filter(dest => dest.name.toLowerCase().includes(value.toLowerCase()))
+        .map(dest => dest.name);
+      
       // Add Ala Moana as a top suggestion if searching for it
       if (value.toLowerCase().includes('ala')) {
-        suggestions.unshift('Ala Moana Center, Honolulu, HI');
+        localSuggestions.unshift('Ala Moana Center, Honolulu, HI');
       }
       
-      const uniqueSuggestions = [...new Set(suggestions)].slice(0, 8);
-      if (uniqueSuggestions.length > 0) {
-        setDestinationSuggestions(uniqueSuggestions);
+      // Combine local suggestions
+      const immediateResults = [...new Set([...localSuggestions, ...popularMatches])].slice(0, 8);
+      
+      if (immediateResults.length > 0) {
+        setDestinationSuggestions(immediateResults);
         setShowDestinationSuggestions(true);
       }
       
-      // Try geocoding API for better results after 2 characters
-      if (value.length > 2) {
+      // Try geocoding API for better results even for 1 character
+      if (value.length >= 1) {
         try {
-          const response = await fetch(`/api/geocode?q=${encodeURIComponent(value)}`);
+          const response = await fetch(`/api/geocode?q=${encodeURIComponent(value + ', Oahu, HI')}`);
           const data = await response.json();
           if (data.success && data.suggestions?.length > 0) {
             const apiSuggestions = data.suggestions.map((s: any) => s.place_name);
             // Combine and deduplicate
-            const combined = [...new Set([...apiSuggestions.slice(0, 5), ...uniqueSuggestions.slice(0, 3)])];
+            const combined = [...new Set([...apiSuggestions.slice(0, 5), ...immediateResults.slice(0, 3)])];
             setDestinationSuggestions(combined);
             setShowDestinationSuggestions(true);
           }
         } catch (error) {
           console.error('Geocoding error:', error);
+          // Keep showing immediate results even if API fails
         }
       }
     } else {
@@ -566,7 +587,7 @@ export default function TripPlanner() {
           <div className="text-center mb-8">
             <h2 className="text-4xl font-bold text-volcanic-900 mb-4">AI-Powered Trip Planner</h2>
             <p className="text-xl text-gray-600">Plan your journey across Oahu with real-time data and smart routing</p>
-            <p className="text-xs text-gray-400 mt-2">v2.2 - Bus/Skyline routes, saved locations, max 3km walks</p>
+            <p className="text-xs text-gray-400 mt-2">v2.3 - Fixed saved locations, enhanced filtering</p>
           </div>
 
           {/* Quick Access Buttons */}
@@ -574,26 +595,66 @@ export default function TripPlanner() {
             <h3 className="text-lg font-semibold mb-4">Quick Access</h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <button
-                onClick={() => selectOrigin(savedLocations.home)}
-                className="flex items-center gap-2 p-3 bg-ocean-50 text-ocean-700 rounded-lg hover:bg-ocean-100 transition-colors"
+                onClick={() => {
+                  if (savedLocations.home) {
+                    setOrigin(savedLocations.home);
+                    console.log('Set origin to home:', savedLocations.home);
+                  }
+                }}
+                disabled={!savedLocations.home}
+                className={`flex items-center gap-2 p-3 rounded-lg transition-colors ${
+                  savedLocations.home 
+                    ? 'bg-ocean-50 text-ocean-700 hover:bg-ocean-100' 
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }`}
               >
                 🏠 Home
               </button>
               <button
-                onClick={() => selectOrigin(savedLocations.work)}
-                className="flex items-center gap-2 p-3 bg-tropical-50 text-tropical-700 rounded-lg hover:bg-tropical-100 transition-colors"
+                onClick={() => {
+                  if (savedLocations.work) {
+                    setOrigin(savedLocations.work);
+                    console.log('Set origin to work:', savedLocations.work);
+                  }
+                }}
+                disabled={!savedLocations.work}
+                className={`flex items-center gap-2 p-3 rounded-lg transition-colors ${
+                  savedLocations.work 
+                    ? 'bg-tropical-50 text-tropical-700 hover:bg-tropical-100' 
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }`}
               >
                 🏢 Work
               </button>
               <button
-                onClick={() => selectDestination(savedLocations.home)}
-                className="flex items-center gap-2 p-3 bg-sunset-50 text-sunset-700 rounded-lg hover:bg-sunset-100 transition-colors"
+                onClick={() => {
+                  if (savedLocations.home) {
+                    setDestination(savedLocations.home);
+                    console.log('Set destination to home:', savedLocations.home);
+                  }
+                }}
+                disabled={!savedLocations.home}
+                className={`flex items-center gap-2 p-3 rounded-lg transition-colors ${
+                  savedLocations.home 
+                    ? 'bg-sunset-50 text-sunset-700 hover:bg-sunset-100' 
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }`}
               >
                 🏠 To Home
               </button>
               <button
-                onClick={() => selectDestination(savedLocations.work)}
-                className="flex items-center gap-2 p-3 bg-volcanic-50 text-volcanic-700 rounded-lg hover:bg-volcanic-100 transition-colors"
+                onClick={() => {
+                  if (savedLocations.work) {
+                    setDestination(savedLocations.work);
+                    console.log('Set destination to work:', savedLocations.work);
+                  }
+                }}
+                disabled={!savedLocations.work}
+                className={`flex items-center gap-2 p-3 rounded-lg transition-colors ${
+                  savedLocations.work 
+                    ? 'bg-volcanic-50 text-volcanic-700 hover:bg-volcanic-100' 
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }`}
               >
                 🏢 To Work
               </button>
