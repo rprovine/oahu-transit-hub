@@ -179,11 +179,24 @@ export default function EnhancedTouristDashboard() {
       });
       
       // Navigate to trip planner with enhanced data
+      let originLocation = 'Your Current Location';
+      
+      if (locationContext?.location) {
+        if (locationContext.location.address) {
+          originLocation = locationContext.location.address;
+        } else if (locationContext.location.district) {
+          originLocation = `${locationContext.location.district}, Oahu, HI`;
+        } else if (locationContext.location.islandRegion) {
+          originLocation = `${locationContext.location.islandRegion}, Oahu, HI`;
+        }
+      }
+      
       const params = new URLSearchParams({
         destination: destinationName,
-        origin: locationContext?.location?.address || 'Current Location'
+        origin: originLocation
       });
       
+      // Use window.location.href for immediate navigation with pre-filled fields
       window.location.href = `/trip-planner?${params.toString()}`;
     } catch (error) {
       console.error('Failed to get directions:', error);

@@ -49,19 +49,33 @@ export default function TripPlanner() {
 
   // Load saved locations and URL parameters on mount
   useEffect(() => {
-    // Load saved locations from localStorage
+    // Always check URL parameters first - this takes priority
+    const params = new URLSearchParams(window.location.search);
+    const urlOrigin = params.get('origin');
+    const urlDestination = params.get('destination');
+    
+    // Set URL parameters immediately if they exist
+    if (urlOrigin) {
+      setOrigin(decodeURIComponent(urlOrigin));
+    }
+    if (urlDestination) {
+      setDestination(decodeURIComponent(urlDestination));
+    }
+    
+    // If we have URL parameters, don't override with saved locations
+    if (urlOrigin || urlDestination) {
+      return;
+    }
+    
+    // Only use saved locations as fallback when no URL parameters
     try {
       const savedSettings = localStorage.getItem('oahu_transit_settings');
-      console.log('Loading saved settings:', savedSettings);
       if (savedSettings) {
         const settings = JSON.parse(savedSettings);
-        console.log('Parsed settings:', settings);
         if (settings.locations && settings.locations.length > 0) {
           const homeLocation = settings.locations.find((loc: any) => loc.type === 'home');
           const workLocation = settings.locations.find((loc: any) => loc.type === 'work');
           const favoriteLocations = settings.locations.filter((loc: any) => loc.type === 'favorite');
-          
-          console.log('Found locations:', { home: homeLocation, work: workLocation });
           
           const savedLocs = {
             home: homeLocation?.address || '',
@@ -71,57 +85,32 @@ export default function TripPlanner() {
           
           setSavedLocations(savedLocs);
           
-          // Auto-populate fields based on time of day and saved locations
+          // Auto-populate fields based on time of day and saved locations only if no URL params
           const currentHour = new Date().getHours();
           const isMorning = currentHour >= 5 && currentHour < 12;
           const isEvening = currentHour >= 15 && currentHour < 22;
           
-          // Check URL parameters first
-          const params = new URLSearchParams(window.location.search);
-          const urlOrigin = params.get('origin');
-          const urlDestination = params.get('destination');
-          const autoFill = params.get('autofill') !== 'false'; // Default to true unless explicitly false
-          
-          if (urlOrigin) {
-            setOrigin(urlOrigin);
-          } else if (autoFill && savedLocs.home && !origin) {
-            // Morning: Default origin is home
+          // Only auto-fill if origin/destination are still empty (no URL params)
+          if (!origin && savedLocs.home) {
             if (isMorning) {
               setOrigin(savedLocs.home);
-            }
-            // Evening: Default origin might be work
-            else if (isEvening && savedLocs.work) {
+            } else if (isEvening && savedLocs.work) {
               setOrigin(savedLocs.work);
             }
           }
           
-          if (urlDestination) {
-            setDestination(urlDestination);
-          } else if (autoFill && !destination) {
-            // Morning: Default destination is work
+          if (!destination) {
             if (isMorning && savedLocs.work) {
               setDestination(savedLocs.work);
-            }
-            // Evening: Default destination is home
-            else if (isEvening && savedLocs.home) {
+            } else if (isEvening && savedLocs.home) {
               setDestination(savedLocs.home);
             }
           }
-          
-          return; // Exit early if we processed saved locations
         }
       }
     } catch (error) {
       console.error('Failed to load saved locations:', error);
     }
-    
-    // If no saved locations, just check URL parameters
-    const params = new URLSearchParams(window.location.search);
-    const urlOrigin = params.get('origin');
-    const urlDestination = params.get('destination');
-    
-    if (urlOrigin) setOrigin(urlOrigin);
-    if (urlDestination) setDestination(urlDestination);
   }, []);
   
   // Close autocomplete when clicking outside
