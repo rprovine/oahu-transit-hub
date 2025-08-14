@@ -326,6 +326,51 @@ Return ONLY a JSON array of route options with this exact format:
       }];
     }
     
+    // West Oahu to Kalihi/Downtown area
+    if (this.isInWestOahu(originLat, originLon) && this.isInKalihi(destLat, destLon)) {
+      console.log('✓ Detected: West Oahu → Kalihi (Route C + Route 1)');
+      return [{
+        duration: 3300, // 55 minutes (Route C + transfer to Route 1)
+        walking_distance: 600,
+        transfers: 1,
+        cost: DEFAULT_TRIP_FARE, // Free transfers within 2 hours
+        legs: [
+          {
+            mode: 'WALK',
+            from: { lat: originLat, lon: originLon, name: 'Starting Location' },
+            to: { lat: originLat + 0.002, lon: originLon + 0.002, name: 'Kapolei Transit Center' },
+            duration: 300,
+            distance: 300
+          },
+          {
+            mode: 'TRANSIT',
+            route: 'C',
+            routeName: 'Country Express',
+            from: { lat: originLat + 0.002, lon: originLon + 0.002, name: 'Kapolei Transit Center' },
+            to: { lat: 21.310, lon: -157.858, name: 'Downtown Honolulu' },
+            duration: 2400, // 40 minutes
+            headsign: 'Downtown Honolulu'
+          },
+          {
+            mode: 'TRANSIT',
+            route: '1',
+            routeName: 'Kalihi-Palama',
+            from: { lat: 21.310, lon: -157.858, name: 'Downtown Transfer' },
+            to: { lat: destLat, lon: destLon, name: 'Kalihi' },
+            duration: 300, // 5 minutes from downtown to Kalihi
+            headsign: 'Kalihi via School Street'
+          },
+          {
+            mode: 'WALK',
+            from: { lat: destLat, lon: destLon, name: 'Kalihi Bus Stop' },
+            to: { lat: destLat, lon: destLon, name: 'Destination' },
+            duration: 300,
+            distance: 300
+          }
+        ]
+      }];
+    }
+    
     // West Oahu to Ala Moana/Town (major commuter route)
     if (this.isInWestOahu(originLat, originLon) && this.isAlaMoana(destLat, destLon)) {
       console.log('✓ Detected: West Oahu → Ala Moana (Route C)');
@@ -471,6 +516,12 @@ Return ONLY a JSON array of route options with this exact format:
     // HNL Airport area
     console.log(`  🔍 Airport check: ${lat}, ${lon}`);
     return lat >= 21.31 && lat <= 21.33 && lon >= -157.94 && lon <= -157.91;
+  }
+  
+  private isInKalihi(lat: number, lon: number): boolean {
+    // Kalihi area - north of downtown Honolulu
+    console.log(`  🔍 Kalihi check: ${lat}, ${lon}`);
+    return lat >= 21.32 && lat <= 21.34 && lon >= -157.88 && lon <= -157.85;
   }
 
   private async fetchTheBusRoutes(): Promise<BusRoute[]> {
