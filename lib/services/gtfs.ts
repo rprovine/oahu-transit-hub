@@ -465,8 +465,7 @@ Return ONLY a JSON array of route options with this exact format:
           
           console.log(`Trying endpoint: ${endpoint}`);
           const response = await fetch(endpoint, { 
-            headers,
-            timeout: 5000 
+            headers
           });
           
           if (response.ok) {
