@@ -221,6 +221,11 @@ export default function TripPlanner() {
         transitResponse.json()
       ]);
       
+      console.log('API Responses:', {
+        routing: { success: routingData.success, hasWalking: routingData.routes?.walking?.length },
+        transit: { success: transitData.success, tripPlan: transitData.tripPlan }
+      });
+      
       // Combine AI insights with real routing data
       let processedRoutes: RouteOption[] = [];
       
@@ -231,7 +236,8 @@ export default function TripPlanner() {
       console.log('Transit data received:', { 
         success: transitData.success, 
         hasPlans: transitData.tripPlan?.plans?.length > 0,
-        planCount: transitData.tripPlan?.plans?.length 
+        planCount: transitData.tripPlan?.plans?.length,
+        fullData: transitData
       });
       
       if (transitData.success && transitData.tripPlan?.plans?.length > 0) {
