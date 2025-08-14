@@ -766,7 +766,7 @@ export default function RouteDetails() {
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-700">Base Fare</span>
-                  <span className="font-semibold">${cost.toFixed(2)}</span>
+                  <span className="font-semibold">${typeof routeData.cost === 'number' ? routeData.cost.toFixed(2) : routeData.cost || '3.00'}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-700">Transfer Fee</span>
@@ -779,7 +779,7 @@ export default function RouteDetails() {
                 <hr className="border-gray-200" />
                 <div className="flex justify-between items-center text-lg font-bold">
                   <span>Total</span>
-                  <span className="text-green-600">{routeData.cost}</span>
+                  <span className="text-green-600">${typeof routeData.cost === 'number' ? routeData.cost.toFixed(2) : routeData.cost || '3.00'}</span>
                 </div>
                 <div className="bg-green-50 p-3 rounded-lg">
                   <p className="text-sm text-green-800">
@@ -897,7 +897,7 @@ export default function RouteDetails() {
                     <p className="text-sm text-gray-600">Express service via King Street</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-ocean-600">${cost.toFixed(2)}</p>
+                    <p className="font-bold text-ocean-600">${typeof routeData.cost === 'number' ? routeData.cost.toFixed(2) : routeData.cost || '3.00'}</p>
                     <p className="text-sm text-gray-500">32 min</p>
                   </div>
                 </div>
@@ -915,7 +915,7 @@ export default function RouteDetails() {
                     <p className="text-sm text-gray-600">HART rail to Aloha Stadium + connecting bus</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-purple-600">${cost.toFixed(2)}</p>
+                    <p className="font-bold text-purple-600">${typeof routeData.cost === 'number' ? routeData.cost.toFixed(2) : routeData.cost || '3.00'}</p>
                     <p className="text-sm text-gray-500">35 min</p>
                   </div>
                 </div>
