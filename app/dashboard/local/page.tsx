@@ -250,28 +250,28 @@ export default function LocalDashboard() {
           <h3 className="text-lg font-semibold mb-4">Quick Routes</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <button
-              onClick={() => {setOrigin(savedLocations.home); setDestination(savedLocations.work);}}
+              onClick={() => window.location.href = `/trip-planner?origin=${encodeURIComponent(savedLocations.home)}&destination=${encodeURIComponent(savedLocations.work)}`}
               className="p-3 bg-ocean-50 text-ocean-700 rounded-lg hover:bg-ocean-100 transition-colors text-center"
             >
               <div className="text-lg mb-1">🏠→🏢</div>
               <div className="text-xs">Home to Work</div>
             </button>
             <button
-              onClick={() => {setOrigin(savedLocations.work); setDestination(savedLocations.home);}}
+              onClick={() => window.location.href = `/trip-planner?origin=${encodeURIComponent(savedLocations.work)}&destination=${encodeURIComponent(savedLocations.home)}`}
               className="p-3 bg-tropical-50 text-tropical-700 rounded-lg hover:bg-tropical-100 transition-colors text-center"
             >
               <div className="text-lg mb-1">🏢→🏠</div>
               <div className="text-xs">Work to Home</div>
             </button>
             <button
-              onClick={() => setOrigin(savedLocations.home)}
+              onClick={() => window.location.href = `/trip-planner?origin=${encodeURIComponent(savedLocations.home)}`}
               className="p-3 bg-sunset-50 text-sunset-700 rounded-lg hover:bg-sunset-100 transition-colors text-center"
             >
               <div className="text-lg mb-1">🏠</div>
               <div className="text-xs">From Home</div>
             </button>
             <button
-              onClick={() => setDestination(savedLocations.home)}
+              onClick={() => window.location.href = `/trip-planner?destination=${encodeURIComponent(savedLocations.home)}`}
               className="p-3 bg-volcanic-50 text-volcanic-700 rounded-lg hover:bg-volcanic-100 transition-colors text-center"
             >
               <div className="text-lg mb-1">🏠</div>
