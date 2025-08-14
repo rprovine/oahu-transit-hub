@@ -2,7 +2,6 @@
 import fs from 'fs';
 import path from 'path';
 import { parse } from 'csv-parse/sync';
-import fetch from 'node-fetch';
 import AdmZip from 'adm-zip';
 
 // GTFS Data Types
@@ -90,7 +89,8 @@ export class GTFSProcessor {
         throw new Error(`Failed to download GTFS: ${response.statusText}`);
       }
       
-      const buffer = await response.buffer();
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
       console.log(`✅ Downloaded ${(buffer.length / 1024 / 1024).toFixed(2)} MB`);
       
       // Create data directory if it doesn't exist
