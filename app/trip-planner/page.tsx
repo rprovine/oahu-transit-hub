@@ -62,18 +62,59 @@ export default function TripPlanner() {
           
           console.log('Found locations:', { home: homeLocation, work: workLocation });
           
-          setSavedLocations({
+          const savedLocs = {
             home: homeLocation?.address || '',
             work: workLocation?.address || '',
             favorites: favoriteLocations.map((loc: any) => loc.address)
-          });
+          };
+          
+          setSavedLocations(savedLocs);
+          
+          // Auto-populate fields based on time of day and saved locations
+          const currentHour = new Date().getHours();
+          const isMorning = currentHour >= 5 && currentHour < 12;
+          const isEvening = currentHour >= 15 && currentHour < 22;
+          
+          // Check URL parameters first
+          const params = new URLSearchParams(window.location.search);
+          const urlOrigin = params.get('origin');
+          const urlDestination = params.get('destination');
+          const autoFill = params.get('autofill') !== 'false'; // Default to true unless explicitly false
+          
+          if (urlOrigin) {
+            setOrigin(urlOrigin);
+          } else if (autoFill && savedLocs.home && !origin) {
+            // Morning: Default origin is home
+            if (isMorning) {
+              setOrigin(savedLocs.home);
+            }
+            // Evening: Default origin might be work
+            else if (isEvening && savedLocs.work) {
+              setOrigin(savedLocs.work);
+            }
+          }
+          
+          if (urlDestination) {
+            setDestination(urlDestination);
+          } else if (autoFill && !destination) {
+            // Morning: Default destination is work
+            if (isMorning && savedLocs.work) {
+              setDestination(savedLocs.work);
+            }
+            // Evening: Default destination is home
+            else if (isEvening && savedLocs.home) {
+              setDestination(savedLocs.home);
+            }
+          }
+          
+          return; // Exit early if we processed saved locations
         }
       }
     } catch (error) {
       console.error('Failed to load saved locations:', error);
     }
     
-    // Load URL parameters
+    // If no saved locations, just check URL parameters
     const params = new URLSearchParams(window.location.search);
     const urlOrigin = params.get('origin');
     const urlDestination = params.get('destination');
@@ -717,7 +758,12 @@ export default function TripPlanner() {
 
           {/* Quick Access Buttons */}
           <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-            <h3 className="text-lg font-semibold mb-4">Quick Access</h3>
+            <h3 className="text-lg font-semibold mb-4">
+              Quick Access
+              {(savedLocations.home || savedLocations.work) && (
+                <span className="text-xs text-gray-500 ml-2">(Auto-filled based on time of day)</span>
+              )}
+            </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <button
                 onClick={() => {
@@ -727,13 +773,15 @@ export default function TripPlanner() {
                   }
                 }}
                 disabled={!savedLocations.home}
-                className={`flex items-center gap-2 p-3 rounded-lg transition-colors ${
+                className={`flex items-center gap-2 p-3 rounded-lg transition-all ${
                   savedLocations.home 
-                    ? 'bg-ocean-50 text-ocean-700 hover:bg-ocean-100' 
+                    ? origin === savedLocations.home
+                      ? 'bg-ocean-600 text-white ring-2 ring-ocean-300 shadow-lg transform scale-105'
+                      : 'bg-ocean-50 text-ocean-700 hover:bg-ocean-100' 
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }`}
               >
-                🏠 Home
+                🏠 {origin === savedLocations.home ? '✓ ' : ''}Home
               </button>
               <button
                 onClick={() => {
@@ -743,13 +791,15 @@ export default function TripPlanner() {
                   }
                 }}
                 disabled={!savedLocations.work}
-                className={`flex items-center gap-2 p-3 rounded-lg transition-colors ${
+                className={`flex items-center gap-2 p-3 rounded-lg transition-all ${
                   savedLocations.work 
-                    ? 'bg-tropical-50 text-tropical-700 hover:bg-tropical-100' 
+                    ? origin === savedLocations.work
+                      ? 'bg-tropical-600 text-white ring-2 ring-tropical-300 shadow-lg transform scale-105'
+                      : 'bg-tropical-50 text-tropical-700 hover:bg-tropical-100' 
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }`}
               >
-                🏢 Work
+                🏢 {origin === savedLocations.work ? '✓ ' : ''}Work
               </button>
               <button
                 onClick={() => {
@@ -759,13 +809,15 @@ export default function TripPlanner() {
                   }
                 }}
                 disabled={!savedLocations.home}
-                className={`flex items-center gap-2 p-3 rounded-lg transition-colors ${
+                className={`flex items-center gap-2 p-3 rounded-lg transition-all ${
                   savedLocations.home 
-                    ? 'bg-sunset-50 text-sunset-700 hover:bg-sunset-100' 
+                    ? destination === savedLocations.home
+                      ? 'bg-sunset-600 text-white ring-2 ring-sunset-300 shadow-lg transform scale-105'
+                      : 'bg-sunset-50 text-sunset-700 hover:bg-sunset-100' 
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }`}
               >
-                🏠 To Home
+                🏠 {destination === savedLocations.home ? '✓ ' : ''}To Home
               </button>
               <button
                 onClick={() => {
@@ -775,13 +827,15 @@ export default function TripPlanner() {
                   }
                 }}
                 disabled={!savedLocations.work}
-                className={`flex items-center gap-2 p-3 rounded-lg transition-colors ${
+                className={`flex items-center gap-2 p-3 rounded-lg transition-all ${
                   savedLocations.work 
-                    ? 'bg-volcanic-50 text-volcanic-700 hover:bg-volcanic-100' 
+                    ? destination === savedLocations.work
+                      ? 'bg-volcanic-600 text-white ring-2 ring-volcanic-300 shadow-lg transform scale-105'
+                      : 'bg-volcanic-50 text-volcanic-700 hover:bg-volcanic-100' 
                     : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }`}
               >
-                🏢 To Work
+                🏢 {destination === savedLocations.work ? '✓ ' : ''}To Work
               </button>
             </div>
           </div>
