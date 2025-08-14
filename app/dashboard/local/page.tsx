@@ -27,13 +27,13 @@ export default function LocalDashboard() {
 
   useEffect(() => {
     // Load saved locations from localStorage
-    const settings = localStorage.getItem('userSettings');
+    const settings = localStorage.getItem('oahu_transit_settings');
     if (settings) {
       try {
         const parsed = JSON.parse(settings);
         setSavedLocations({
-          home: parsed.homeAddress || '',
-          work: parsed.workAddress || ''
+          home: parsed.homeLocation || '',
+          work: parsed.workLocation || ''
         });
       } catch (error) {
         console.error('Error loading saved locations:', error);

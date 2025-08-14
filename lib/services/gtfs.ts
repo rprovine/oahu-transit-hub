@@ -332,6 +332,12 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
     const destStops = findNearestStops(destLat, destLon, 0.8);
     
     console.log(`Found ${originStops.length} stops near origin, ${destStops.length} stops near destination`);
+    if (originStops.length > 0) {
+      console.log(`Nearest origin stop: ${originStops[0].stop_name} (${originStops[0].distance?.toFixed(2)} km away)`);
+    }
+    if (destStops.length > 0) {
+      console.log(`Nearest dest stop: ${destStops[0].stop_name} (${destStops[0].distance?.toFixed(2)} km away)`);
+    }
     
     if (originStops.length === 0) {
       console.log('❌ No bus stops within walking distance of origin');
@@ -421,7 +427,13 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
     
     // If no direct routes, look for one-transfer routes
     if (routes.length === 0) {
+      console.log('No direct routes found, looking for transfer options...');
       routes.push(...this.findTransferRoutes(originStops, destStops, originLat, originLon, destLat, destLon));
+      
+      // If still no routes, try Claude/API before giving up
+      if (routes.length === 0) {
+        console.log('No transfer routes found either - will try Claude API or fallback');
+      }
     }
     
     // Sort by total travel time
@@ -470,6 +482,8 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
     const majorHubs = OAHU_BUS_STOPS.filter(stop => 
       stop.location_type === 'station' || stop.routes.length >= 3
     );
+    
+    console.log(`Checking ${majorHubs.length} major hubs for transfer options...`);
     
     for (const originStop of originStops) {
       for (const hub of majorHubs) {
