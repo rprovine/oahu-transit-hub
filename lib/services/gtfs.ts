@@ -1,4 +1,5 @@
 import { DEFAULT_TRIP_FARE } from '@/lib/constants/transit-fares';
+import { findNearestStops, getWalkingTime, calculateDistance, BusStop, WEST_OAHU_BUS_STOPS } from '@/lib/data/bus-stops';
 
 interface BusRoute {
   route_id: string;
@@ -318,9 +319,33 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
   }
 
   private async generateRealOahuRoutes(originLat: number, originLon: number, destLat: number, destLon: number): Promise<any[]> {
-    console.log(`🚌 Dynamic route generation: [${originLat}, ${originLon}] → [${destLat}, ${destLon}]`);
+    console.log(`🚌 Real routing: [${originLat}, ${originLon}] → [${destLat}, ${destLon}]`);
     
-    // First try to get actual bus routes from TheBus API
+    // Find actual nearby bus stops
+    const originStops = findNearestStops(originLat, originLon, 0.8); // 800m max walk
+    const destStops = findNearestStops(destLat, destLon, 0.8);
+    
+    console.log(`Found ${originStops.length} stops near origin, ${destStops.length} stops near destination`);
+    
+    if (originStops.length === 0) {
+      console.log('❌ No bus stops within walking distance of origin');
+      return [];
+    }
+    
+    if (destStops.length === 0) {
+      console.log('❌ No bus stops within walking distance of destination');
+      return [];
+    }
+    
+    // Find route connections between nearby stops
+    const routes = this.findRouteConnections(originStops, destStops, originLat, originLon, destLat, destLon);
+    
+    if (routes.length > 0) {
+      console.log(`✅ Found ${routes.length} route options using real bus stops`);
+      return routes;
+    }
+    
+    // First try to get actual bus routes from TheBus API as backup
     try {
       const busRoutes = await this.queryTheBusAPI(originLat, originLon, destLat, destLon);
       if (busRoutes && busRoutes.length > 0) {
@@ -332,8 +357,179 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
     }
 
     // No bus routes found - return empty to trigger Claude API or fallback
-    console.log('❌ No real bus routes found from API - need to use Claude or rideshare');
+    console.log('❌ No real bus routes found - need to use Claude or rideshare');
     return [];
+  }
+
+  private findRouteConnections(originStops: BusStop[], destStops: BusStop[], originLat: number, originLon: number, destLat: number, destLon: number): any[] {
+    const routes: any[] = [];
+    
+    // Check for direct routes (no transfers)
+    for (const originStop of originStops) {
+      for (const destStop of destStops) {
+        const commonRoutes = originStop.routes.filter(route => destStop.routes.includes(route));
+        
+        for (const routeId of commonRoutes) {
+          const walkToStopTime = getWalkingTime(originStop.distance!);
+          const walkFromStopTime = getWalkingTime(destStop.distance!);
+          
+          // Estimate transit time based on route type and distance
+          let transitTime = this.estimateTransitTime(routeId, originStop, destStop);
+          
+          routes.push({
+            duration: (walkToStopTime + transitTime + walkFromStopTime) * 60, // Convert to seconds
+            walking_distance: Math.round((originStop.distance! + destStop.distance!) * 1000), // Convert to meters
+            transfers: 0,
+            cost: DEFAULT_TRIP_FARE,
+            legs: [
+              {
+                mode: 'WALK',
+                from: { lat: originLat, lon: originLon, name: 'Starting Location' },
+                to: { lat: originStop.stop_lat, lon: originStop.stop_lon, name: originStop.stop_name },
+                duration: walkToStopTime * 60,
+                distance: Math.round(originStop.distance! * 1000),
+                instruction: `Walk ${walkToStopTime} min to ${originStop.stop_name}`
+              },
+              {
+                mode: 'TRANSIT',
+                route: routeId,
+                routeName: this.getRouteName(routeId),
+                from: { lat: originStop.stop_lat, lon: originStop.stop_lon, name: originStop.stop_name },
+                to: { lat: destStop.stop_lat, lon: destStop.stop_lon, name: destStop.stop_name },
+                duration: transitTime * 60,
+                headsign: this.getRouteHeadsign(routeId, destStop)
+              },
+              {
+                mode: 'WALK',
+                from: { lat: destStop.stop_lat, lon: destStop.stop_lon, name: destStop.stop_name },
+                to: { lat: destLat, lon: destLon, name: 'Destination' },
+                duration: walkFromStopTime * 60,
+                distance: Math.round(destStop.distance! * 1000),
+                instruction: `Walk ${walkFromStopTime} min to destination`
+              }
+            ]
+          });
+        }
+      }
+    }
+    
+    // If no direct routes, look for one-transfer routes
+    if (routes.length === 0) {
+      routes.push(...this.findTransferRoutes(originStops, destStops, originLat, originLon, destLat, destLon));
+    }
+    
+    // Sort by total travel time
+    return routes.sort((a, b) => a.duration - b.duration).slice(0, 3); // Return top 3 options
+  }
+
+  private estimateTransitTime(routeId: string, originStop: BusStop, destStop: BusStop): number {
+    const distance = calculateDistance(originStop.stop_lat, originStop.stop_lon, destStop.stop_lat, destStop.stop_lon);
+    
+    // Different average speeds for different route types
+    let avgSpeedKmh = 25; // Default city bus speed
+    
+    if (routeId === 'C') {
+      avgSpeedKmh = 35; // Express route is faster
+    } else if (routeId.startsWith('40') || routeId.startsWith('42')) {
+      avgSpeedKmh = 30; // Express routes
+    }
+    
+    return Math.max(5, Math.round((distance / avgSpeedKmh) * 60)); // Minimum 5 minutes
+  }
+
+  private getRouteName(routeId: string): string {
+    const routeNames: Record<string, string> = {
+      'C': 'Country Express',
+      '1': 'Kalihi-Palama',
+      '40': 'Honolulu-Ewa Beach Express',
+      '42': 'Ewa Beach-Waikiki',
+      '401': 'Kapolei Local',
+      '402': 'Kapolei Local',
+      '403': 'Kapolei Local'
+    };
+    return routeNames[routeId] || `Route ${routeId}`;
+  }
+
+  private getRouteHeadsign(routeId: string, destStop: BusStop): string {
+    if (routeId === 'C') {
+      return destStop.stop_name.includes('Downtown') || destStop.stop_lat > 21.31 ? 'Downtown Honolulu' : 'Kapolei';
+    }
+    return `To ${destStop.stop_name}`;
+  }
+
+  private findTransferRoutes(originStops: BusStop[], destStops: BusStop[], originLat: number, originLon: number, destLat: number, destLon: number): any[] {
+    const transferRoutes: any[] = [];
+    
+    // Look for routes that connect via major hubs
+    const majorHubs = WEST_OAHU_BUS_STOPS.filter(stop => 
+      stop.location_type === 'station' || stop.routes.length >= 3
+    );
+    
+    for (const originStop of originStops) {
+      for (const hub of majorHubs) {
+        const firstLegRoutes = originStop.routes.filter(route => hub.routes.includes(route));
+        
+        for (const destStop of destStops) {
+          const secondLegRoutes = hub.routes.filter(route => destStop.routes.includes(route));
+          
+          // Find common route for second leg
+          for (const firstRoute of firstLegRoutes) {
+            for (const secondRoute of secondLegRoutes) {
+              if (firstRoute !== secondRoute) { // Ensure it's actually a transfer
+                const walkToStopTime = getWalkingTime(originStop.distance!);
+                const walkFromStopTime = getWalkingTime(destStop.distance!);
+                const firstLegTime = this.estimateTransitTime(firstRoute, originStop, hub);
+                const secondLegTime = this.estimateTransitTime(secondRoute, hub, destStop);
+                const transferTime = 5; // 5 minute transfer time
+                
+                transferRoutes.push({
+                  duration: (walkToStopTime + firstLegTime + transferTime + secondLegTime + walkFromStopTime) * 60,
+                  walking_distance: Math.round((originStop.distance! + destStop.distance!) * 1000),
+                  transfers: 1,
+                  cost: DEFAULT_TRIP_FARE, // Free transfers within 2 hours
+                  legs: [
+                    {
+                      mode: 'WALK',
+                      from: { lat: originLat, lon: originLon, name: 'Starting Location' },
+                      to: { lat: originStop.stop_lat, lon: originStop.stop_lon, name: originStop.stop_name },
+                      duration: walkToStopTime * 60,
+                      distance: Math.round(originStop.distance! * 1000)
+                    },
+                    {
+                      mode: 'TRANSIT',
+                      route: firstRoute,
+                      routeName: this.getRouteName(firstRoute),
+                      from: { lat: originStop.stop_lat, lon: originStop.stop_lon, name: originStop.stop_name },
+                      to: { lat: hub.stop_lat, lon: hub.stop_lon, name: hub.stop_name },
+                      duration: firstLegTime * 60,
+                      headsign: this.getRouteHeadsign(firstRoute, hub)
+                    },
+                    {
+                      mode: 'TRANSIT',
+                      route: secondRoute,
+                      routeName: this.getRouteName(secondRoute),
+                      from: { lat: hub.stop_lat, lon: hub.stop_lon, name: hub.stop_name },
+                      to: { lat: destStop.stop_lat, lon: destStop.stop_lon, name: destStop.stop_name },
+                      duration: secondLegTime * 60,
+                      headsign: this.getRouteHeadsign(secondRoute, destStop)
+                    },
+                    {
+                      mode: 'WALK',
+                      from: { lat: destStop.stop_lat, lon: destStop.stop_lon, name: destStop.stop_name },
+                      to: { lat: destLat, lon: destLon, name: 'Destination' },
+                      duration: walkFromStopTime * 60,
+                      distance: Math.round(destStop.distance! * 1000)
+                    }
+                  ]
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    return transferRoutes.slice(0, 2); // Return top 2 transfer options
   }
 
   private async queryTheBusAPI(originLat: number, originLon: number, destLat: number, destLon: number): Promise<any[]> {
