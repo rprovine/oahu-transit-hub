@@ -224,47 +224,18 @@ export default function TripPlanner() {
       // Combine AI insights with real routing data
       const processedRoutes: RouteOption[] = [];
       
-      // Add walking route
-      if (routingData.success && routingData.routes.walking?.length > 0) {
-        const walkingRoute = routingData.routes.walking[0];
-        processedRoutes.push({
-          id: 'walking',
-          totalTime: Math.round(walkingRoute.duration / 60),
-          totalCost: 0,
-          co2Saved: Math.round(walkingRoute.distance * 0.0002 * 100) / 100, // rough estimate
-          type: 'greenest',
-          steps: [
-            { mode: 'walk', instruction: `Walk ${Math.round(walkingRoute.distance / 1000 * 10) / 10} km to destination`, duration: Math.round(walkingRoute.duration / 60) }
-          ]
-        });
-      }
+      // Only add routes if we have real API data
+      const validRoutes: RouteOption[] = [];
       
-      // Add cycling route
-      if (routingData.success && routingData.routes.cycling?.length > 0) {
-        const cyclingRoute = routingData.routes.cycling[0];
-        processedRoutes.push({
-          id: 'cycling',
-          totalTime: Math.round(cyclingRoute.duration / 60),
-          totalCost: 4.95, // Biki bike share day pass
-          co2Saved: Math.round(cyclingRoute.distance * 0.0004 * 100) / 100,
-          type: 'fastest',
-          steps: [
-            { mode: 'walk', instruction: 'Walk to Biki station', duration: 2 },
-            { mode: 'bus', instruction: `Bike ${Math.round(cyclingRoute.distance / 1000 * 10) / 10} km`, duration: Math.round(cyclingRoute.duration / 60) },
-            { mode: 'walk', instruction: 'Walk from Biki station', duration: 2 }
-          ]
-        });
-      }
-      
-      // Add transit routes
+      // Add transit routes from real API data
       if (transitData.success && transitData.tripPlan?.plans?.length > 0) {
         transitData.tripPlan.plans.forEach((plan: any, index: number) => {
-          processedRoutes.push({
+          validRoutes.push({
             id: `transit-${index}`,
             totalTime: Math.round(plan.duration / 60),
             totalCost: plan.cost || 2.75,
-            co2Saved: 3.2, // Average for public transit
-            type: index === 0 ? 'fastest' : 'cheapest',
+            co2Saved: Math.round((plan.distance || 5000) * 0.0008 * 100) / 100, // Calculate based on actual distance
+            type: 'fastest', // Will be reassigned based on actual comparison
             steps: plan.legs.map((leg: any) => ({
               mode: leg.mode.toLowerCase() === 'transit' ? 'bus' : leg.mode.toLowerCase(),
               instruction: leg.mode === 'TRANSIT' ? `${leg.route} to ${leg.to.name}` : `${leg.mode} to ${leg.to.name}`,
@@ -273,6 +244,38 @@ export default function TripPlanner() {
             }))
           });
         });
+      }
+      
+      // Add walking route only if we have real routing data
+      if (routingData.success && routingData.routes.walking?.length > 0) {
+        const walkingRoute = routingData.routes.walking[0];
+        validRoutes.push({
+          id: 'walking',
+          totalTime: Math.round(walkingRoute.duration / 60),
+          totalCost: 0,
+          co2Saved: Math.round(walkingRoute.distance * 0.0004 * 100) / 100, // Walking saves more CO2 than driving
+          type: 'fastest', // Will be reassigned based on actual comparison
+          steps: [
+            { mode: 'walk', instruction: `Walk ${Math.round(walkingRoute.distance / 1000 * 10) / 10} km to destination`, duration: Math.round(walkingRoute.duration / 60) }
+          ]
+        });
+      }
+      
+      // Correctly classify routes based on actual data
+      if (validRoutes.length > 0) {
+        // Sort by time to find fastest
+        const sortedByTime = [...validRoutes].sort((a, b) => a.totalTime - b.totalTime);
+        // Sort by cost to find cheapest  
+        const sortedByCost = [...validRoutes].sort((a, b) => a.totalCost - b.totalCost);
+        // Sort by CO2 savings to find greenest
+        const sortedByGreen = [...validRoutes].sort((a, b) => b.co2Saved - a.co2Saved);
+        
+        // Assign types based on actual rankings
+        if (sortedByTime[0]) sortedByTime[0].type = 'fastest';
+        if (sortedByCost[0]) sortedByCost[0].type = 'cheapest';  
+        if (sortedByGreen[0]) sortedByGreen[0].type = 'greenest';
+        
+        processedRoutes = validRoutes;
       }
       
       // If no routes found, use fallback
