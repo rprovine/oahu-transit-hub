@@ -18,6 +18,7 @@ import {
   TouristDestination 
 } from '@/lib/data/tourist-destinations';
 import { hartSkylineService } from '@/lib/services/hart-skyline';
+import ComprehensiveCulturalGuide from '@/components/comprehensive-cultural-guide';
 
 // Helper function to calculate distance
 function calculateDistance(coord1: [number, number], coord2: [number, number]): number {
@@ -225,7 +226,7 @@ export default function EnhancedTouristDashboard() {
           </Link>
           <nav className="flex gap-4">
             <button 
-              onClick={() => setSelectedTab('explore')}
+              onClick={() => setSelectedTab('main')}
               className="hover:text-tropical-200 flex items-center gap-2"
             >
               <Map className="h-4 w-4" />
@@ -319,50 +320,7 @@ export default function EnhancedTouristDashboard() {
         )}
 
         {selectedTab === 'guide' && (
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-2xl font-bold mb-6">Hawaii Visitor Guide</h2>
-            <div className="space-y-6">
-              <div className="border-l-4 border-tropical-500 pl-4">
-                <h3 className="font-semibold text-lg">🌺 Hawaiian Culture & Etiquette</h3>
-                <ul className="mt-2 space-y-1 text-sm text-gray-600">
-                  <li>• Always remove shoes before entering homes</li>
-                  <li>• Learn to say "Aloha" (hello/goodbye) and "Mahalo" (thank you)</li>
-                  <li>• Respect sacred sites and kapu (forbidden) areas</li>
-                  <li>• Don't take lava rocks, sand, or coral as souvenirs</li>
-                </ul>
-              </div>
-              
-              {locationContext?.culturalContext && (
-                <div className="border-l-4 border-blue-500 pl-4">
-                  <h3 className="font-semibold text-lg">🏝️ Your Current Area</h3>
-                  <p className="mt-2 text-sm text-gray-600 mb-2">
-                    {locationContext.culturalContext.historicalSignificance}
-                  </p>
-                  <ul className="space-y-1 text-sm text-gray-600">
-                    {locationContext.culturalContext.respectfulBehavior.map((behavior, idx) => (
-                      <li key={idx}>• {behavior}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              
-              <div className="border-l-4 border-green-500 pl-4">
-                <h3 className="font-semibold text-lg">🌱 Sustainable Tourism</h3>
-                <ul className="mt-2 space-y-1 text-sm text-gray-600">
-                  {locationContext?.sustainabilityTips ? 
-                    locationContext.sustainabilityTips.map((tip, idx) => (
-                      <li key={idx}>• {tip}</li>
-                    )) : [
-                      <li key="1">• Use reef-safe, mineral-based sunscreen only</li>,
-                      <li key="2">• Choose public transit to reduce carbon footprint</li>,
-                      <li key="3">• Support local businesses and communities</li>,
-                      <li key="4">• Respect wildlife - maintain safe distances</li>
-                    ]
-                  }
-                </ul>
-              </div>
-            </div>
-          </div>
+          <ComprehensiveCulturalGuide locationContext={locationContext} />
         )}
 
         {selectedTab === 'main' && (
