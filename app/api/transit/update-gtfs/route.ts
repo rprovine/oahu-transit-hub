@@ -1,43 +1,37 @@
 // API endpoint to update GTFS data from TheBus
 import { NextRequest, NextResponse } from 'next/server';
-import { gtfsProcessor } from '@/lib/services/gtfs-processor';
+import { gtfsMemoryProcessor } from '@/lib/services/gtfs-memory-processor';
 
 export async function GET(request: NextRequest) {
   try {
     // Check if data exists
-    if (gtfsProcessor.hasData()) {
-      const lastUpdate = gtfsProcessor.getLastUpdateTime();
+    if (gtfsMemoryProcessor.hasData()) {
+      const summary = gtfsMemoryProcessor.getSummary();
       return NextResponse.json({
         success: true,
-        message: 'GTFS data already exists',
-        lastUpdate: lastUpdate?.toISOString(),
+        message: 'GTFS data already loaded',
+        summary,
         needsUpdate: false
       });
     }
 
     // Download and process GTFS data
-    await gtfsProcessor.downloadAndExtractGTFS();
-    await gtfsProcessor.loadAllData();
+    await gtfsMemoryProcessor.downloadAndProcessGTFS();
     
     // Get summary
-    const stops = gtfsProcessor.getStops();
-    const routes = gtfsProcessor.getRoutes();
+    const summary = gtfsMemoryProcessor.getSummary();
     
     return NextResponse.json({
       success: true,
-      message: 'GTFS data updated successfully',
-      summary: {
-        stops: stops.length,
-        routes: routes.length,
-        lastUpdate: new Date().toISOString()
-      }
+      message: 'GTFS data loaded successfully',
+      summary
     });
   } catch (error) {
     console.error('GTFS update error:', error);
     return NextResponse.json(
       { 
         success: false, 
-        error: 'Failed to update GTFS data',
+        error: 'Failed to load GTFS data',
         details: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
@@ -48,21 +42,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Force update GTFS data
-    await gtfsProcessor.downloadAndExtractGTFS();
-    await gtfsProcessor.loadAllData();
+    await gtfsMemoryProcessor.downloadAndProcessGTFS();
     
     // Get summary
-    const stops = gtfsProcessor.getStops();
-    const routes = gtfsProcessor.getRoutes();
+    const summary = gtfsMemoryProcessor.getSummary();
     
     return NextResponse.json({
       success: true,
       message: 'GTFS data force updated successfully',
-      summary: {
-        stops: stops.length,
-        routes: routes.length,
-        lastUpdate: new Date().toISOString()
-      }
+      summary
     });
   } catch (error) {
     console.error('GTFS force update error:', error);

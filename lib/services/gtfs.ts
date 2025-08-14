@@ -6,6 +6,7 @@ import {
   BusStop as BusStopData, 
   OAHU_BUS_STOPS 
 } from '@/lib/data/bus-stops';
+import { gtfsMemoryProcessor, GTFSStop } from './gtfs-memory-processor';
 
 interface BusRoute {
   route_id: string;
@@ -325,18 +326,35 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
   }
 
   private async generateRealOahuRoutes(originLat: number, originLon: number, destLat: number, destLon: number): Promise<any[]> {
-    console.log(`🚌 Real routing: [${originLat}, ${originLon}] → [${destLat}, ${destLon}]`);
+    console.log(`🚌 Real GTFS routing: [${originLat}, ${originLon}] → [${destLat}, ${destLon}]`);
     
-    // Find actual nearby bus stops
-    const originStops = findNearestStops(originLat, originLon, 0.8); // 800m max walk
-    const destStops = findNearestStops(destLat, destLon, 0.8);
+    // Ensure GTFS data is loaded
+    if (!gtfsMemoryProcessor.hasData()) {
+      console.log('📥 Loading GTFS data...');
+      await gtfsMemoryProcessor.downloadAndProcessGTFS();
+    }
+    
+    // Find actual nearby bus stops using real GTFS data
+    const originStops = gtfsMemoryProcessor.findNearbyStops(originLat, originLon, 0.8); // 800m max walk
+    const destStops = gtfsMemoryProcessor.findNearbyStops(destLat, destLon, 0.8);
     
     console.log(`Found ${originStops.length} stops near origin, ${destStops.length} stops near destination`);
     if (originStops.length > 0) {
       console.log(`Nearest origin stop: ${originStops[0].stop_name} (${originStops[0].distance?.toFixed(2)} km away)`);
+      // Show first few stops for debugging
+      console.log('Origin stops:');
+      originStops.slice(0, 3).forEach(stop => {
+        const routes = gtfsMemoryProcessor.getRoutesForStop(stop.stop_id);
+        console.log(`  - ${stop.stop_name} (${stop.stop_id}) - ${stop.distance?.toFixed(3)} km - Routes: ${routes.map(r => r.route_short_name || r.route_id).join(', ')}`);
+      });
     }
     if (destStops.length > 0) {
       console.log(`Nearest dest stop: ${destStops[0].stop_name} (${destStops[0].distance?.toFixed(2)} km away)`);
+      console.log('Destination stops:');
+      destStops.slice(0, 3).forEach(stop => {
+        const routes = gtfsMemoryProcessor.getRoutesForStop(stop.stop_id);
+        console.log(`  - ${stop.stop_name} (${stop.stop_id}) - ${stop.distance?.toFixed(3)} km - Routes: ${routes.map(r => r.route_short_name || r.route_id).join(', ')}`);
+      });
     }
     
     if (originStops.length === 0) {
@@ -350,7 +368,7 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
     }
     
     // Find route connections between nearby stops
-    const routes = this.findRouteConnections(originStops, destStops, originLat, originLon, destLat, destLon);
+    const routes = this.findGTFSRouteConnections(originStops, destStops, originLat, originLon, destLat, destLon);
     
     if (routes.length > 0) {
       console.log(`✅ Found ${routes.length} route options using real bus stops`);
@@ -373,6 +391,68 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
     return [];
   }
 
+  private findGTFSRouteConnections(originStops: GTFSStop[], destStops: GTFSStop[], originLat: number, originLon: number, destLat: number, destLon: number): any[] {
+    const routes: any[] = [];
+    
+    // Check for direct routes (no transfers)
+    for (const originStop of originStops) {
+      for (const destStop of destStops) {
+        // Get routes that serve both stops
+        const originRoutes = gtfsMemoryProcessor.getRoutesForStop(originStop.stop_id);
+        const destRoutes = gtfsMemoryProcessor.getRoutesForStop(destStop.stop_id);
+        const commonRoutes = originRoutes.filter(oRoute => 
+          destRoutes.some(dRoute => dRoute.route_id === oRoute.route_id)
+        );
+        
+        for (const route of commonRoutes) {
+          const walkToStopTime = Math.round((originStop.distance! * 1000) / 80); // 80m/min walking speed
+          const walkFromStopTime = Math.round((destStop.distance! * 1000) / 80);
+          
+          // Estimate transit time based on route type and distance
+          let transitTime = this.estimateGTFSTransitTime(route.route_id, originStop, destStop);
+          
+          routes.push({
+            duration: (walkToStopTime + transitTime + walkFromStopTime) * 60, // Convert to seconds
+            walking_distance: Math.round((originStop.distance! + destStop.distance!) * 1000), // Convert to meters
+            transfers: 0,
+            cost: DEFAULT_TRIP_FARE,
+            legs: [
+              {
+                mode: 'WALK',
+                from: { lat: originLat, lon: originLon, name: 'Starting Location' },
+                to: { lat: originStop.stop_lat, lon: originStop.stop_lon, name: originStop.stop_name },
+                duration: walkToStopTime * 60,
+                distance: Math.round(originStop.distance! * 1000),
+                instruction: `Walk ${walkToStopTime} min to ${originStop.stop_name}`
+              },
+              {
+                mode: 'TRANSIT',
+                route: route.route_short_name || route.route_id,
+                routeName: route.route_long_name || route.route_short_name || `Route ${route.route_id}`,
+                from: { lat: originStop.stop_lat, lon: originStop.stop_lon, name: originStop.stop_name },
+                to: { lat: destStop.stop_lat, lon: destStop.stop_lon, name: destStop.stop_name },
+                duration: transitTime * 60,
+                headsign: route.route_long_name || `To ${destStop.stop_name}`
+              },
+              {
+                mode: 'WALK',
+                from: { lat: destStop.stop_lat, lon: destStop.stop_lon, name: destStop.stop_name },
+                to: { lat: destLat, lon: destLon, name: 'Destination' },
+                duration: walkFromStopTime * 60,
+                distance: Math.round(destStop.distance! * 1000),
+                instruction: `Walk ${walkFromStopTime} min to destination`
+              }
+            ]
+          });
+        }
+      }
+    }
+    
+    // Sort by total travel time
+    return routes.sort((a, b) => a.duration - b.duration).slice(0, 3); // Return top 3 options
+  }
+  
+  // Keep the old one for fallback
   private findRouteConnections(originStops: BusStopData[], destStops: BusStopData[], originLat: number, originLon: number, destLat: number, destLon: number): any[] {
     const routes: any[] = [];
     
@@ -440,6 +520,21 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
     return routes.sort((a, b) => a.duration - b.duration).slice(0, 3); // Return top 3 options
   }
 
+  private estimateGTFSTransitTime(routeId: string, originStop: GTFSStop, destStop: GTFSStop): number {
+    const distance = this.calculateDistance(originStop.stop_lat, originStop.stop_lon, destStop.stop_lat, destStop.stop_lon);
+    
+    // Different average speeds for different route types
+    let avgSpeedKmh = 25; // Default city bus speed
+    
+    if (routeId === 'C' || routeId === '501' || routeId === '502') {
+      avgSpeedKmh = 35; // Express routes are faster
+    } else if (routeId.startsWith('4') || routeId.startsWith('E')) {
+      avgSpeedKmh = 30; // Express routes
+    }
+    
+    return Math.max(5, Math.round((distance / avgSpeedKmh) * 60)); // Minimum 5 minutes
+  }
+  
   private estimateTransitTime(routeId: string, originStop: BusStopData, destStop: BusStopData): number {
     const distance = calculateDistance(originStop.stop_lat, originStop.stop_lon, destStop.stop_lat, destStop.stop_lon);
     
