@@ -258,19 +258,21 @@ export default function MapboxMap({
           `;
           stopEl.innerHTML = '🚌';
 
-          new mapboxgl.Marker(stopEl)
-            .setLngLat(coords)
-            .setPopup(
-              new mapboxgl.Popup({ offset: 25 })
-                .setHTML(`
-                  <div class="p-3">
-                    <h3 class="font-semibold text-sm">${stop.name}</h3>
-                    <p class="text-xs text-gray-600">${stop.description}</p>
-                    <p class="text-xs font-medium text-blue-600">${stop.time}</p>
-                  </div>
-                `)
-            )
-            .addTo(map.current);
+          if (map.current) {
+            new mapboxgl.Marker(stopEl)
+              .setLngLat(coords)
+              .setPopup(
+                new mapboxgl.Popup({ offset: 25 })
+                  .setHTML(`
+                    <div class="p-3">
+                      <h3 class="font-semibold text-sm">${stop.name}</h3>
+                      <p class="text-xs text-gray-600">${stop.description}</p>
+                      <p class="text-xs font-medium text-blue-600">${stop.time}</p>
+                    </div>
+                  `)
+              )
+              .addTo(map.current);
+          }
         }
       });
     }
@@ -365,9 +367,11 @@ export default function MapboxMap({
           box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
         `;
 
-        vehicleMarker.current = new mapboxgl.Marker(vehicleEl)
-          .setLngLat(coords)
-          .addTo(map.current);
+        if (map.current) {
+          vehicleMarker.current = new mapboxgl.Marker(vehicleEl)
+            .setLngLat(coords)
+            .addTo(map.current);
+        }
       }
     }
   }, [currentStepIndex, isLive]);
