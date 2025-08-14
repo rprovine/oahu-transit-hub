@@ -154,25 +154,28 @@ export class GTFSService {
     try {
       const prompt = `Plan a realistic transit route on Oahu, Hawaii from coordinates [${originLat}, ${originLon}] to [${destLat}, ${destLon}]. 
 
+CRITICAL: If no reasonable public transit route exists, return "NO_TRANSIT_AVAILABLE" instead of a JSON array.
+
 IMPORTANT ROUTING RULES:
+- Only use REAL routes that actually exist and make geographic sense
 - Route 23 (Hawaii Kai-Sea Life Park) serves EAST Oahu (Diamond Head, Hawaii Kai) - NOT Kalihi/North Shore
 - For Kapolei to Kalihi: Use Route C to Downtown, then Route 1 to Kalihi
 - For West Oahu to anywhere: Route C (Country Express) goes to Downtown first
-- Ala Moana Center is NOT the best hub for Kalihi destinations (use Downtown instead)
+- Never create fake routes or use inappropriate routes
 
-Real Oahu bus routes:
-- Route C (Country Express): Kapolei/West Oahu to Downtown (fast express)
-- Route 1: Kalihi-Palama-Downtown (serves Kalihi area)
-- Route 40: Ewa Beach to Ala Moana (express)
-- Route 42: Ewa Beach to Waikiki via Ala Moana
-- Route 20: Airport to Waikiki/Downtown
-- Route 23: Hawaii Kai via Diamond Head (EAST Oahu only - not for Kalihi!)
-- Route 8: Waikiki to Ala Moana (frequent)
-- Routes 56/57: To Kailua/Lanikai beaches
+Real Oahu bus routes with actual service patterns:
+- Route C (Country Express): Kapolei/West Oahu ↔ Downtown (fast express, limited stops)
+- Route 1: Kalihi-Palama ↔ Downtown (serves Kalihi area)
+- Route 40: Ewa Beach ↔ Ala Moana (express service)
+- Route 42: Ewa Beach ↔ Waikiki via Ala Moana
+- Route 20: Airport ↔ Waikiki/Downtown
+- Route 23: Hawaii Kai ↔ Sea Life Park via Diamond Head (EAST Oahu ONLY)
+- Route 8: Waikiki ↔ Ala Moana (frequent urban service)
+- Routes 56/57: Ala Moana ↔ Kailua/Lanikai beaches
 
 Key transit hubs: Downtown (for Kalihi), Ala Moana Center (for central/south), Kapolei Transit Center.
 
-Return ONLY a JSON array of route options with this exact format:
+If transit IS available, return ONLY a JSON array:
 [{
   "duration": 2700,
   "walking_distance": 600,
@@ -199,7 +202,9 @@ Return ONLY a JSON array of route options with this exact format:
     "duration": 300,
     "distance": 250
   }]
-}]`;
+}]
+
+If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
 
       console.log('Using Claude API for intelligent routing...');
       
@@ -230,13 +235,20 @@ Return ONLY a JSON array of route options with this exact format:
       
       // Parse Claude's response
       try {
+        // Check if Claude says no transit is available
+        if (routeText.trim() === 'NO_TRANSIT_AVAILABLE') {
+          console.log('🚕 Claude determined no transit available - will suggest rideshare');
+          return [];
+        }
+        
         const routes = JSON.parse(routeText);
         if (Array.isArray(routes)) {
-          console.log('Claude provided', routes.length, 'route options');
+          console.log('✅ Claude provided', routes.length, 'route options');
           return routes;
         }
       } catch (parseError) {
         console.error('Error parsing Claude response:', parseError);
+        console.log('Claude response was:', routeText);
       }
       
       return [];
@@ -247,260 +259,188 @@ Return ONLY a JSON array of route options with this exact format:
   }
 
   private getFallbackTripPlan(originLat: number, originLon: number, destLat: number, destLon: number): any {
-    console.log('🔄 Fallback routing analysis...');
+    console.log('🚕 No transit options found - suggesting rideshare/taxi');
     
-    // Determine best fallback route based on location
-    let route = 'Multiple', routeName = 'See TheBus.org for routes', duration = 2700;
-    
-    // Check specific area patterns
-    if (this.isInWaikiki(originLat, originLon) || this.isInWaikiki(destLat, destLon)) {
-      route = '8'; routeName = 'Waikiki-Ala Moana'; duration = 1800;
-      console.log('📍 Fallback: Waikiki area - using Route 8');
-    } else if (this.isHonoluluAirport(originLat, originLon) || this.isHonoluluAirport(destLat, destLon)) {
-      route = '20'; routeName = 'Airport-Hickam'; duration = 2700;
-      console.log('📍 Fallback: Airport area - using Route 20');
-    } else if (this.isInWestOahu(originLat, originLon) && this.isAlaMoana(destLat, destLon)) {
-      route = 'C'; routeName = 'Country Express'; duration = 2700;
-      console.log('📍 Fallback: West Oahu to town - using Route C');
-    } else if (this.isInWestOahu(originLat, originLon) || this.isInWestOahu(destLat, destLon)) {
-      route = '40'; routeName = 'Honolulu-Ewa Beach Express'; duration = 3600;
-      console.log('📍 Fallback: West Oahu area - using Route 40');
-    } else {
-      console.log('📍 Fallback: General routing advice - multiple routes may be needed');
-    }
+    // Calculate approximate distance for rideshare estimates
+    const distanceKm = this.calculateDistance(originLat, originLon, destLat, destLon);
+    const estimatedDuration = Math.max(900, distanceKm * 120); // Min 15 min, ~2 min per km
+    const estimatedCost = Math.max(15, distanceKm * 3.5); // Oahu taxi rates: ~$3.50/km + base fare
     
     return {
-      plans: [{
-        duration,
-        walking_distance: 800,
-        transfers: this.isAlaMoana(destLat, destLon) ? 0 : 1,
-        cost: DEFAULT_TRIP_FARE,
-        legs: [
-          {
-            mode: 'WALK',
-            from: { lat: originLat, lon: originLon, name: 'Starting Location' },
-            to: { lat: originLat + 0.001, lon: originLon + 0.001, name: 'Bus Stop' },
-            duration: 600,
-            distance: 400,
-            instruction: 'Walk to nearest bus stop'
-          },
-          {
-            mode: 'TRANSIT',
-            route,
-            routeName,
-            from: { lat: originLat + 0.001, lon: originLon + 0.001, name: 'Bus Stop' },
-            to: { lat: destLat - 0.001, lon: destLon - 0.001, name: 'Near Destination' },
-            duration: duration - 1200,
-            headsign: `${routeName} - Real Oahu Route`
-          },
-          {
-            mode: 'WALK',
-            from: { lat: destLat - 0.001, lon: destLon - 0.001, name: 'Bus Stop' },
-            to: { lat: destLat, lon: destLon, name: 'Destination' },
-            duration: 600,
-            distance: 400,
-            instruction: 'Walk to destination'
-          }
-        ]
-      }],
-      success: true
+      plans: [
+        {
+          duration: estimatedDuration,
+          walking_distance: 100, // Just to car pickup
+          transfers: 0,
+          cost: estimatedCost,
+          mode: 'RIDESHARE',
+          legs: [
+            {
+              mode: 'RIDESHARE',
+              provider: 'Uber/Lyft/Taxi',
+              from: { lat: originLat, lon: originLon, name: 'Current Location' },
+              to: { lat: destLat, lon: destLon, name: 'Destination' },
+              duration: estimatedDuration,
+              distance: distanceKm * 1000,
+              instruction: `No public transit available. Consider rideshare (~$${estimatedCost.toFixed(0)}) or taxi service.`,
+              headsign: 'Direct Ride',
+              alternatives: [
+                'Uber - Download app or call',
+                'Lyft - Available in most areas',
+                'Local taxi companies',
+                'Hotel shuttle (if available)'
+              ]
+            }
+          ],
+          note: `Distance: ${distanceKm.toFixed(1)} km. Public transit may not serve this route efficiently.`
+        }
+      ],
+      success: true,
+      transitUnavailable: true,
+      message: 'No efficient public transit route found. Rideshare or taxi recommended.'
     };
   }
 
+  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = this.toRadians(lat2 - lat1);
+    const dLon = this.toRadians(lon2 - lon1);
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(this.toRadians(lat1)) * Math.cos(this.toRadians(lat2)) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+
+  private toRadians(degrees: number): number {
+    return degrees * (Math.PI/180);
+  }
+
   private async generateRealOahuRoutes(originLat: number, originLon: number, destLat: number, destLon: number): Promise<any[]> {
-    console.log(`Routing analysis: Origin [${originLat}, ${originLon}] → Destination [${destLat}, ${destLon}]`);
+    console.log(`🚌 Dynamic route generation: [${originLat}, ${originLon}] → [${destLat}, ${destLon}]`);
     
-    // Kapolei/West Oahu to Ko Olina (very close - should be quick!)
-    if (this.isInWestOahu(originLat, originLon) && this.isKoOlina(destLat, destLon)) {
-      console.log('✓ Detected: West Oahu → Ko Olina (short route)');
-      return [{
-        duration: 900, // 15 minutes - Ko Olina is very close to Kapolei
-        walking_distance: 400,
-        transfers: 0,
-        cost: DEFAULT_TRIP_FARE,
-        legs: [
-          {
-            mode: 'WALK',
-            from: { lat: originLat, lon: originLon, name: 'Current Location' },
-            to: { lat: originLat - 0.001, lon: originLon - 0.003, name: 'Farrington Highway' },
-            duration: 300, // 5 minutes walk
-            distance: 200
-          },
-          {
-            mode: 'TRANSIT',
-            route: 'Local',
-            routeName: 'Ko Olina Local Service',
-            from: { lat: originLat - 0.001, lon: originLon - 0.003, name: 'Farrington Highway' },
-            to: { lat: destLat, lon: destLon, name: 'Ko Olina Lagoons' },
-            duration: 420, // 7 minutes - very short distance
-            headsign: 'Ko Olina Resort'
-          },
-          {
-            mode: 'WALK',
-            from: { lat: destLat, lon: destLon, name: 'Ko Olina Station' },
-            to: { lat: destLat, lon: destLon, name: 'Ko Olina Lagoons' },
-            duration: 180, // 3 minutes walk
-            distance: 200
-          }
-        ]
-      }];
+    // First try to get actual bus routes from TheBus API
+    try {
+      const busRoutes = await this.queryTheBusAPI(originLat, originLon, destLat, destLon);
+      if (busRoutes && busRoutes.length > 0) {
+        console.log('✅ Found real bus routes from TheBus API');
+        return busRoutes;
+      }
+    } catch (error) {
+      console.error('TheBus API query failed:', error);
     }
-    
-    // West Oahu to Kalihi/Downtown area
-    if (this.isInWestOahu(originLat, originLon) && this.isInKalihi(destLat, destLon)) {
-      console.log('✓ Detected: West Oahu → Kalihi (Route C + Route 1)');
-      return [{
-        duration: 3300, // 55 minutes (Route C + transfer to Route 1)
-        walking_distance: 600,
-        transfers: 1,
-        cost: DEFAULT_TRIP_FARE, // Free transfers within 2 hours
-        legs: [
-          {
-            mode: 'WALK',
-            from: { lat: originLat, lon: originLon, name: 'Starting Location' },
-            to: { lat: originLat + 0.002, lon: originLon + 0.002, name: 'Kapolei Transit Center' },
-            duration: 300,
-            distance: 300
-          },
-          {
-            mode: 'TRANSIT',
-            route: 'C',
-            routeName: 'Country Express',
-            from: { lat: originLat + 0.002, lon: originLon + 0.002, name: 'Kapolei Transit Center' },
-            to: { lat: 21.310, lon: -157.858, name: 'Downtown Honolulu' },
-            duration: 2400, // 40 minutes
-            headsign: 'Downtown Honolulu'
-          },
-          {
-            mode: 'TRANSIT',
-            route: '1',
-            routeName: 'Kalihi-Palama',
-            from: { lat: 21.310, lon: -157.858, name: 'Downtown Transfer' },
-            to: { lat: destLat, lon: destLon, name: 'Kalihi' },
-            duration: 300, // 5 minutes from downtown to Kalihi
-            headsign: 'Kalihi via School Street'
-          },
-          {
-            mode: 'WALK',
-            from: { lat: destLat, lon: destLon, name: 'Kalihi Bus Stop' },
-            to: { lat: destLat, lon: destLon, name: 'Destination' },
-            duration: 300,
-            distance: 300
-          }
-        ]
-      }];
-    }
-    
-    // West Oahu to Ala Moana/Town (major commuter route)
-    if (this.isInWestOahu(originLat, originLon) && this.isAlaMoana(destLat, destLon)) {
-      console.log('✓ Detected: West Oahu → Ala Moana (Route C)');
-      return [{
-        duration: 2700, // 45 minutes (Route C Express)
-        walking_distance: 600,
-        transfers: 0,
-        cost: DEFAULT_TRIP_FARE,
-        legs: [
-          {
-            mode: 'WALK',
-            from: { lat: originLat, lon: originLon, name: 'Starting Location' },
-            to: { lat: originLat + 0.002, lon: originLon + 0.002, name: 'Transit Center' },
-            duration: 300,
-            distance: 300
-          },
-          {
-            mode: 'TRANSIT',
-            route: 'C',
-            routeName: 'Country Express',
-            from: { lat: originLat + 0.002, lon: originLon + 0.002, name: 'Kapolei Transit Center' },
-            to: { lat: destLat, lon: destLon, name: 'Ala Moana Center' },
-            duration: 2100,
-            headsign: 'Ala Moana via H-1'
-          },
-          {
-            mode: 'WALK',
-            from: { lat: destLat, lon: destLon, name: 'Ala Moana Center' },
-            to: { lat: destLat, lon: destLon, name: 'Destination' },
-            duration: 300,
-            distance: 300
-          }
-        ]
-      }];
-    }
-    
-    // Waikiki to Diamond Head
-    if (this.isInWaikiki(originLat, originLon) && this.isDiamondHead(destLat, destLon)) {
-      console.log('✓ Detected: Waikiki → Diamond Head (Route 23)');
-      return [{
-        duration: 1800, // 30 minutes
-        walking_distance: 600,
-        transfers: 0,
-        cost: DEFAULT_TRIP_FARE,
-        legs: [
-          {
-            mode: 'WALK',
-            from: { lat: originLat, lon: originLon, name: 'Waikiki' },
-            to: { lat: originLat + 0.001, lon: originLon + 0.001, name: 'Kalakaua Ave' },
-            duration: 300,
-            distance: 200
-          },
-          {
-            mode: 'TRANSIT',
-            route: '23',
-            routeName: 'Hawaii Kai-Sea Life Park',
-            from: { lat: originLat + 0.001, lon: originLon + 0.001, name: 'Kalakaua Ave' },
-            to: { lat: destLat, lon: destLon, name: 'Diamond Head Road' },
-            duration: 1200,
-            headsign: 'Hawaii Kai via Diamond Head'
-          },
-          {
-            mode: 'WALK',
-            from: { lat: destLat, lon: destLon, name: 'Diamond Head Road' },
-            to: { lat: destLat, lon: destLon, name: 'Diamond Head Trailhead' },
-            duration: 300,
-            distance: 400
-          }
-        ]
-      }];
-    }
-    
-    // Airport routes (Route 20)
-    if (this.isHonoluluAirport(originLat, originLon) || this.isHonoluluAirport(destLat, destLon)) {
-      console.log('✓ Detected: Airport route (Route 20)');
-      return [{
-        duration: 2700, // 45 minutes
-        walking_distance: 500,
-        transfers: 0,
-        cost: DEFAULT_TRIP_FARE,
-        legs: [
-          {
-            mode: 'WALK',
-            from: { lat: originLat, lon: originLon, name: 'Airport Terminal' },
-            to: { lat: originLat + 0.001, lon: originLon + 0.001, name: 'Airport Bus Stop' },
-            duration: 600,
-            distance: 250
-          },
-          {
-            mode: 'TRANSIT',
-            route: '20',
-            routeName: 'Airport-Hickam',
-            from: { lat: originLat + 0.001, lon: originLon + 0.001, name: 'Airport' },
-            to: { lat: destLat, lon: destLon, name: 'Destination Area' },
-            duration: 1800,
-            headsign: this.isInWaikiki(destLat, destLon) ? 'Waikiki via Ala Moana' : 'Downtown Honolulu'
-          },
-          {
-            mode: 'WALK',
-            from: { lat: destLat, lon: destLon, name: 'Bus Stop' },
-            to: { lat: destLat, lon: destLon, name: 'Final Destination' },
-            duration: 300,
-            distance: 250
-          }
-        ]
-      }];
-    }
-    
-    console.log('❌ No coordinate-based route match found - using fallback');
+
+    // No bus routes found - return empty to trigger Claude API or fallback
+    console.log('❌ No real bus routes found from API - need to use Claude or rideshare');
     return [];
+  }
+
+  private async queryTheBusAPI(originLat: number, originLon: number, destLat: number, destLon: number): Promise<any[]> {
+    try {
+      // Try TheBus trip planning API endpoints
+      const endpoints = [
+        `${this.theBusBaseUrl}/tripplanner?appID=${this.theBusAppId}&from=${originLat},${originLon}&to=${destLat},${destLon}&format=json`,
+        `${this.theBusBaseUrl}/directions?appID=${this.theBusAppId}&origin=${originLat},${originLon}&destination=${destLat},${destLon}&format=json`
+      ];
+
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`🔍 Querying TheBus API: ${endpoint.replace(this.theBusAppId!, 'API_KEY')}`);
+          
+          const response = await fetch(endpoint, {
+            headers: { 'Content-Type': 'application/json' }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('TheBus API response received');
+            
+            // Transform TheBus API response to our format
+            if (data && (data.routes || data.directions || data.trips)) {
+              return this.transformTheBusResponse(data, originLat, originLon, destLat, destLon);
+            }
+          } else {
+            console.log(`TheBus API ${response.status}: ${response.statusText}`);
+          }
+        } catch (endpointError) {
+          console.error(`TheBus endpoint failed:`, endpointError);
+        }
+      }
+
+      return [];
+    } catch (error) {
+      console.error('TheBus API integration error:', error);
+      return [];
+    }
+  }
+
+  private transformTheBusResponse(data: any, originLat: number, originLon: number, destLat: number, destLon: number): any[] {
+    try {
+      // Transform actual TheBus API response into our route format
+      const routes = data.routes || data.directions || data.trips || [];
+      
+      return routes.map((route: any) => ({
+        duration: route.duration || route.time || 2700,
+        walking_distance: route.walkDistance || 600,
+        transfers: route.transfers || 0,
+        cost: DEFAULT_TRIP_FARE,
+        legs: this.transformBusLegs(route.legs || [], originLat, originLon, destLat, destLon)
+      }));
+    } catch (error) {
+      console.error('Error transforming TheBus response:', error);
+      return [];
+    }
+  }
+
+  private transformBusLegs(legs: any[], originLat: number, originLon: number, destLat: number, destLon: number): any[] {
+    if (!legs || legs.length === 0) {
+      // Create basic transit leg if no detailed legs provided
+      return [
+        {
+          mode: 'WALK',
+          from: { lat: originLat, lon: originLon, name: 'Starting Location' },
+          to: { lat: originLat + 0.001, lon: originLon + 0.001, name: 'Bus Stop' },
+          duration: 300,
+          distance: 200
+        },
+        {
+          mode: 'TRANSIT',
+          route: 'Bus',
+          routeName: 'TheBus Route',
+          from: { lat: originLat + 0.001, lon: originLon + 0.001, name: 'Bus Stop' },
+          to: { lat: destLat - 0.001, lon: destLon - 0.001, name: 'Destination Stop' },
+          duration: 2100,
+          headsign: 'To Destination'
+        },
+        {
+          mode: 'WALK',
+          from: { lat: destLat - 0.001, lon: destLon - 0.001, name: 'Bus Stop' },
+          to: { lat: destLat, lon: destLon, name: 'Destination' },
+          duration: 300,
+          distance: 200
+        }
+      ];
+    }
+
+    return legs.map((leg: any) => ({
+      mode: leg.mode === 'TRANSIT' || leg.routeId ? 'TRANSIT' : 'WALK',
+      route: leg.routeId || leg.route,
+      routeName: leg.routeName || `Route ${leg.routeId || leg.route}`,
+      from: {
+        lat: leg.from?.lat || originLat,
+        lon: leg.from?.lon || originLon,
+        name: leg.from?.name || 'Location'
+      },
+      to: {
+        lat: leg.to?.lat || destLat,
+        lon: leg.to?.lon || destLon,
+        name: leg.to?.name || 'Destination'
+      },
+      duration: leg.duration || 600,
+      distance: leg.distance || 300,
+      headsign: leg.headsign || leg.routeName
+    }));
   }
   
   // Helper methods for coordinate detection
