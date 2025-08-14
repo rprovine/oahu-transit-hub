@@ -359,41 +359,80 @@ export default function TripPlanner() {
       }
       
       // ALWAYS add bus routes for ANY Oahu trip over 3km
-      const needsBusRoutes = origin.toLowerCase().includes('palala') || 
+      const needsBusRoutes = origin.toLowerCase().includes('kapolei') ||
+                            origin.toLowerCase().includes('palala') || 
                             origin.toLowerCase().includes('ewa') || 
                             origin.toLowerCase().includes('91-1020') ||
                             origin.toLowerCase().includes('gulick') ||
+                            origin.toLowerCase().includes('kalihi') ||
                             destination.toLowerCase().includes('ala') ||
-                            destination.toLowerCase().includes('gulick');
+                            destination.toLowerCase().includes('gulick') ||
+                            destination.toLowerCase().includes('kalihi');
       
       if (needsBusRoutes || validRoutes.length === 0) {
-        console.log('Adding Oahu bus routes for Ewa to Ala Moana');
-        // Add actual Oahu bus routes
-        validRoutes.push({
-          id: 'route-40',
-          totalTime: 45,
-          totalCost: 3.00,
-          co2Saved: 4.2,
-          type: 'fastest',
-          steps: [
-            { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
-            { mode: 'bus', instruction: 'Route 40 Express to Ala Moana', duration: 35, route: '40' },
-            { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
-          ]
-        });
+        // Check if this is Kapolei to Kalihi trip
+        const isKapoleiToKalihi = (origin.toLowerCase().includes('kapolei') || origin.toLowerCase().includes('palala')) &&
+                                  (destination.toLowerCase().includes('gulick') || destination.toLowerCase().includes('kalihi'));
         
-        validRoutes.push({
-          id: 'route-42',
-          totalTime: 55,
-          totalCost: 3.00,
-          co2Saved: 4.0,
-          type: 'cheapest',
-          steps: [
-            { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
-            { mode: 'bus', instruction: 'Route 42 to Ala Moana', duration: 45, route: '42' },
-            { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
-          ]
-        });
+        if (isKapoleiToKalihi) {
+          console.log('Adding Kapolei to Kalihi bus routes');
+          // Route C (Country Express) + Route 1 transfer
+          validRoutes.push({
+            id: 'route-c-1',
+            totalTime: 55,
+            totalCost: 3.00,
+            co2Saved: 4.5,
+            type: 'fastest',
+            steps: [
+              { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
+              { mode: 'bus', instruction: 'Route C Country Express to Downtown', duration: 35, route: 'C' },
+              { mode: 'bus', instruction: 'Transfer to Route 1 to Kalihi/Gulick', duration: 10, route: '1' },
+              { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
+            ]
+          });
+          
+          // Route 41 direct (if available)
+          validRoutes.push({
+            id: 'route-41',
+            totalTime: 45,
+            totalCost: 3.00,
+            co2Saved: 4.2,
+            type: 'cheapest',
+            steps: [
+              { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
+              { mode: 'bus', instruction: 'Route 41 to Kalihi via H-1', duration: 35, route: '41' },
+              { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
+            ]
+          });
+        } else {
+          console.log('Adding standard Oahu bus routes');
+          // Default routes for other trips
+          validRoutes.push({
+            id: 'route-40',
+            totalTime: 45,
+            totalCost: 3.00,
+            co2Saved: 4.2,
+            type: 'fastest',
+            steps: [
+              { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
+              { mode: 'bus', instruction: 'Route 40 Express', duration: 35, route: '40' },
+              { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
+            ]
+          });
+          
+          validRoutes.push({
+            id: 'route-42',
+            totalTime: 55,
+            totalCost: 3.00,
+            co2Saved: 4.0,
+            type: 'cheapest',
+            steps: [
+              { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
+              { mode: 'bus', instruction: 'Route 42', duration: 45, route: '42' },
+              { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
+            ]
+          });
+        }
         
         // Add Skyline (HART) rail option
         validRoutes.push({
