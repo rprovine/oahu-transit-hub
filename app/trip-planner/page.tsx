@@ -398,20 +398,48 @@ export default function TripPlanner() {
                     → Destination (${transitData.tripPlan.coordinates.destination.lat}, ${transitData.tripPlan.coordinates.destination.lon})`
         }]);
       } else if (transitData.success && transitData.tripPlan?.plans?.length > 0) {
+        console.log('Processing transit plans:', transitData.tripPlan.plans);
         transitData.tripPlan.plans.forEach((plan: any, index: number) => {
-          validRoutes.push({
+          // Skip rideshare fallbacks - they should be handled separately
+          if (plan.mode === 'RIDESHARE') {
+            console.log('Skipping rideshare fallback plan');
+            return;
+          }
+          
+          // Calculate total duration from legs if not provided
+          const totalDuration = plan.duration || plan.legs?.reduce((sum: number, leg: any) => sum + (leg.duration || 0), 0) || 2400; // Default 40 min
+          
+          const route = {
             id: `transit-${index}`,
-            totalTime: Math.round(plan.duration / 60),
+            totalTime: Math.round(totalDuration / 60),
             totalCost: plan.cost || DEFAULT_TRIP_FARE, // $3.00 with free transfers
-            co2Saved: Math.round((plan.distance || 5000) * 0.0008 * 100) / 100, // Calculate based on actual distance
+            co2Saved: Math.round((plan.walking_distance || plan.distance || 5000) * 0.0008 * 100) / 100, // Calculate based on actual distance
             type: 'fastest', // Will be reassigned based on actual comparison
-            steps: plan.legs.map((leg: any) => ({
-              mode: leg.mode.toLowerCase() === 'transit' ? 'bus' : leg.mode.toLowerCase(),
-              instruction: leg.mode === 'TRANSIT' ? `${leg.route} to ${leg.to.name}` : `${leg.mode} to ${leg.to.name}`,
-              duration: Math.round(leg.duration / 60),
-              route: leg.route
-            }))
-          });
+            steps: plan.legs.map((leg: any) => {
+              // Build proper instruction text
+              let instruction = '';
+              if (leg.mode === 'WALK') {
+                const walkMin = Math.round((leg.duration || 300) / 60);
+                const distance = leg.distance ? `${(leg.distance / 1000).toFixed(1)} km` : '';
+                instruction = leg.instruction || `Walk ${walkMin} min${distance ? ' (' + distance + ')' : ''} to ${leg.to?.name || 'destination'}`;
+              } else if (leg.mode === 'TRANSIT') {
+                const routeName = leg.routeName || leg.route || 'Bus';
+                instruction = `Take ${routeName} to ${leg.to?.name || 'destination'}`;
+              } else {
+                instruction = leg.instruction || `${leg.mode} to ${leg.to?.name || 'destination'}`;
+              }
+              
+              return {
+                mode: leg.mode.toLowerCase() === 'transit' ? 'bus' : leg.mode.toLowerCase(),
+                instruction: instruction,
+                duration: Math.round((leg.duration || 600) / 60), // Default 10 min if missing
+                route: leg.route
+              };
+            })
+          };
+          
+          console.log('Created route:', route);
+          validRoutes.push(route);
         });
       }
       

@@ -94,10 +94,69 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Debug logging to understand what's being received
+    console.log('🔍 Transit API received:', {
+      origin: origin,
+      destination: destination,
+      originType: typeof origin,
+      destinationType: typeof destination,
+      hasLatLon: origin?.lat !== undefined && origin?.lon !== undefined
+    });
+
+    // Handle string addresses (geocode them first)
+    let originCoords, destCoords;
+    
+    if (typeof origin === 'string') {
+      // Origin is a string address, need to geocode it
+      console.log('📍 Geocoding origin string:', origin);
+      const geocodeResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001'}/api/geocode?q=${encodeURIComponent(origin)}`);
+      const geocodeData = await geocodeResponse.json();
+      if (!geocodeData.success || !geocodeData.suggestions?.[0]?.center) {
+        return NextResponse.json(
+          { success: false, error: 'Failed to geocode origin address' },
+          { status: 400 }
+        );
+      }
+      originCoords = geocodeData.suggestions[0].center; // [lon, lat]
+    } else if (origin?.lat !== undefined && origin?.lon !== undefined) {
+      originCoords = [origin.lon, origin.lat];
+    } else {
+      return NextResponse.json(
+        { success: false, error: 'Invalid origin format' },
+        { status: 400 }
+      );
+    }
+
+    if (typeof destination === 'string') {
+      // Destination is a string address, need to geocode it
+      console.log('📍 Geocoding destination string:', destination);
+      const geocodeResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001'}/api/geocode?q=${encodeURIComponent(destination)}`);
+      const geocodeData = await geocodeResponse.json();
+      if (!geocodeData.success || !geocodeData.suggestions?.[0]?.center) {
+        return NextResponse.json(
+          { success: false, error: 'Failed to geocode destination address' },
+          { status: 400 }
+        );
+      }
+      destCoords = geocodeData.suggestions[0].center; // [lon, lat]
+    } else if (destination?.lat !== undefined && destination?.lon !== undefined) {
+      destCoords = [destination.lon, destination.lat];
+    } else {
+      return NextResponse.json(
+        { success: false, error: 'Invalid destination format' },
+        { status: 400 }
+      );
+    }
+
+    console.log('🗺️ Using coordinates:', {
+      origin: originCoords,
+      destination: destCoords
+    });
+
     const gtfsService = new GTFSService();
     const tripPlan = await gtfsService.planTrip(
-      [origin.lon, origin.lat],
-      [destination.lon, destination.lat],
+      originCoords,
+      destCoords,
       time
     );
 
