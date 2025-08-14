@@ -112,6 +112,21 @@ export default function TripPlanner() {
       console.error('Failed to load saved locations:', error);
     }
   }, []);
+
+  // Auto-plan trip when both origin and destination are provided via URL parameters
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlOrigin = params.get('origin');
+    const urlDestination = params.get('destination');
+    
+    // Auto-plan if both URL parameters exist and we haven't already planned
+    if (urlOrigin && urlDestination && origin && destination && routes.length === 0 && !isPlanning) {
+      // Small delay to ensure components are mounted and state is set
+      setTimeout(() => {
+        handlePlanTrip();
+      }, 500);
+    }
+  }, [origin, destination]); // Run when origin or destination changes
   
   // Close autocomplete when clicking outside
   useEffect(() => {

@@ -33,6 +33,20 @@ export default function ComprehensiveCulturalGuide({ locationContext }: Cultural
     }
   };
 
+  const scrollToSection = (sectionId: string) => {
+    setSelectedSection(sectionId);
+    setTimeout(() => {
+      const element = document.getElementById(`section-${sectionId}`);
+      if (element) {
+        element.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start',
+          inline: 'nearest'
+        });
+      }
+    }, 100);
+  };
+
   const sections = [
     { id: 'overview', title: 'Cultural Overview', icon: '🌺' },
     { id: 'language', title: 'Hawaiian Language', icon: '🗣️' },
@@ -44,10 +58,8 @@ export default function ComprehensiveCulturalGuide({ locationContext }: Cultural
     { id: 'arts', title: 'Arts & Crafts', icon: '🎨' }
   ];
 
-  const renderSection = () => {
-    switch (selectedSection) {
-      case 'overview':
-        return (
+  const renderOverviewSection = () => {
+    return (
           <div className="space-y-6">
             <div className="bg-gradient-to-r from-tropical-50 to-blue-50 p-6 rounded-lg">
               <h3 className="text-xl font-bold text-tropical-800 mb-4">Welcome to Hawaiian Culture</h3>
@@ -97,10 +109,11 @@ export default function ComprehensiveCulturalGuide({ locationContext }: Cultural
               </div>
             )}
           </div>
-        );
+    );
+  };
 
-      case 'language':
-        return (
+  const renderLanguageSection = () => {
+    return (
           <div className="space-y-6">
             <div className="bg-tropical-50 p-6 rounded-lg">
               <h3 className="text-xl font-bold text-tropical-800 mb-4">ʻŌlelo Hawaiʻi (Hawaiian Language)</h3>
@@ -208,10 +221,11 @@ export default function ComprehensiveCulturalGuide({ locationContext }: Cultural
               </div>
             </div>
           </div>
-        );
+    );
+  };
 
-      case 'etiquette':
-        return (
+  const renderEtiquetteSection = () => {
+    return (
           <div className="space-y-6">
             <div className="bg-blue-50 p-6 rounded-lg">
               <h3 className="text-xl font-bold text-blue-800 mb-4">Cultural Etiquette & Protocols</h3>
@@ -313,10 +327,11 @@ export default function ComprehensiveCulturalGuide({ locationContext }: Cultural
               </div>
             </div>
           </div>
-        );
+    );
+  };
 
-      case 'history':
-        return (
+  const renderHistorySection = () => {
+    return (
           <div className="space-y-6">
             <div className="bg-amber-50 p-6 rounded-lg">
               <h3 className="text-xl font-bold text-amber-800 mb-4">Hawaiian History & Context</h3>
@@ -412,10 +427,11 @@ export default function ComprehensiveCulturalGuide({ locationContext }: Cultural
               </div>
             </div>
           </div>
-        );
+    );
+  };
 
-      case 'sustainability':
-        return (
+  const renderSustainabilitySection = () => {
+    return (
           <div className="space-y-6">
             <div className="bg-green-50 p-6 rounded-lg">
               <h3 className="text-xl font-bold text-green-800 mb-4">Responsible & Sustainable Tourism</h3>
@@ -541,10 +557,11 @@ export default function ComprehensiveCulturalGuide({ locationContext }: Cultural
               </div>
             </div>
           </div>
-        );
+    );
+  };
 
-      case 'food':
-        return (
+  const renderFoodSection = () => {
+    return (
           <div className="space-y-6">
             <div className="bg-orange-50 p-6 rounded-lg">
               <h3 className="text-xl font-bold text-orange-800 mb-4">Hawaiian Food Culture & Traditions</h3>
@@ -645,10 +662,11 @@ export default function ComprehensiveCulturalGuide({ locationContext }: Cultural
               </div>
             </div>
           </div>
-        );
+    );
+  };
 
-      case 'nature':
-        return (
+  const renderNatureSection = () => {
+    return (
           <div className="space-y-6">
             <div className="bg-emerald-50 p-6 rounded-lg">
               <h3 className="text-xl font-bold text-emerald-800 mb-4">Hawaii's Natural Environment</h3>
@@ -788,10 +806,11 @@ export default function ComprehensiveCulturalGuide({ locationContext }: Cultural
               </div>
             </div>
           </div>
-        );
+    );
+  };
 
-      case 'arts':
-        return (
+  const renderArtsSection = () => {
+    return (
           <div className="space-y-6">
             <div className="bg-pink-50 p-6 rounded-lg">
               <h3 className="text-xl font-bold text-pink-800 mb-4">Hawaiian Arts, Crafts & Cultural Expressions</h3>
@@ -948,11 +967,7 @@ export default function ComprehensiveCulturalGuide({ locationContext }: Cultural
               </div>
             </div>
           </div>
-        );
-
-      default:
-        return <div>Section not found</div>;
-    }
+    );
   };
 
   return (
@@ -971,7 +986,7 @@ export default function ComprehensiveCulturalGuide({ locationContext }: Cultural
             {sections.map((section) => (
               <button
                 key={section.id}
-                onClick={() => setSelectedSection(section.id)}
+                onClick={() => scrollToSection(section.id)}
                 className={`w-full text-left px-4 py-3 rounded-lg flex items-center gap-3 transition-all ${
                   selectedSection === section.id
                     ? 'bg-tropical-100 text-tropical-800 border border-tropical-200'
@@ -991,8 +1006,48 @@ export default function ComprehensiveCulturalGuide({ locationContext }: Cultural
         </div>
 
         {/* Content Area */}
-        <div className="lg:w-3/4 p-6">
-          {renderSection()}
+        <div className="lg:w-3/4 p-6 max-h-[80vh] overflow-y-auto">
+          <div className="space-y-8">
+            {/* Overview Section */}
+            <div id="section-overview" className="scroll-mt-4">
+              {renderOverviewSection()}
+            </div>
+
+            {/* Language Section */}
+            <div id="section-language" className="scroll-mt-4">
+              {renderLanguageSection()}
+            </div>
+
+            {/* Etiquette Section */}
+            <div id="section-etiquette" className="scroll-mt-4">
+              {renderEtiquetteSection()}
+            </div>
+
+            {/* History Section */}
+            <div id="section-history" className="scroll-mt-4">
+              {renderHistorySection()}
+            </div>
+
+            {/* Sustainability Section */}
+            <div id="section-sustainability" className="scroll-mt-4">
+              {renderSustainabilitySection()}
+            </div>
+
+            {/* Food Section */}
+            <div id="section-food" className="scroll-mt-4">
+              {renderFoodSection()}
+            </div>
+
+            {/* Nature Section */}
+            <div id="section-nature" className="scroll-mt-4">
+              {renderNatureSection()}
+            </div>
+
+            {/* Arts Section */}
+            <div id="section-arts" className="scroll-mt-4">
+              {renderArtsSection()}
+            </div>
+          </div>
         </div>
       </div>
     </div>
