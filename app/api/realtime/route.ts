@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     // Get service alerts
     if (action === 'alerts') {
-      const alerts = await realtimeService.getServiceAlerts(routeId);
+      const alerts = await realtimeService.getServiceAlerts(routeId || undefined);
       return NextResponse.json({
         success: true,
         alerts,
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
     if (routeId && !stopId) {
       const [vehicles, alerts] = await Promise.all([
         realtimeService.getVehiclePositions(routeId),
-        realtimeService.getServiceAlerts(routeId)
+        realtimeService.getServiceAlerts(routeId || undefined)
       ]);
 
       return NextResponse.json({
