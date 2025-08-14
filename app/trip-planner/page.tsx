@@ -301,12 +301,12 @@ export default function TripPlanner() {
         }
       }
       
-      // ALWAYS add bus routes for Ewa to Ala Moana
+      // ALWAYS add bus routes for Ewa to Ala Moana (regardless of other routes)
       const isEwaToAlaMoana = origin.toLowerCase().includes('palala') || 
                              origin.toLowerCase().includes('ewa') || 
-                             (destination.toLowerCase().includes('ala moana'));
+                             origin.toLowerCase().includes('91-1020');
       
-      if (isEwaToAlaMoana && validRoutes.length === 0) {
+      if (isEwaToAlaMoana && destination.toLowerCase().includes('ala')) {
         console.log('Adding Oahu bus routes for Ewa to Ala Moana');
         // Add actual Oahu bus routes
         validRoutes.push({
@@ -338,13 +338,18 @@ export default function TripPlanner() {
       
       // Correctly classify routes based on actual data
       if (validRoutes.length > 0) {
-        // Remove any walking routes over 3km that somehow got through
+        // AGGRESSIVELY remove ANY walking routes over 3km
         const filteredRoutes = validRoutes.filter(route => {
+          // Block any walking route entirely if it's the main mode
           if (route.id === 'walking') {
-            const walkStep = route.steps.find(s => s.mode === 'walk' && s.duration > 45);
-            if (walkStep) {
-              console.log('Filtering out long walk:', walkStep);
-              return false;
+            // Check total walking time
+            const totalWalkTime = route.steps
+              .filter(s => s.mode === 'walk')
+              .reduce((sum, s) => sum + s.duration, 0);
+            
+            if (totalWalkTime > 45 || route.totalTime > 45) {
+              console.log('BLOCKING long walking route:', route.totalTime, 'minutes');
+              return false; // Remove this route completely
             }
           }
           return true;
@@ -371,7 +376,26 @@ export default function TripPlanner() {
         console.log('No viable transit routes found for this trip');
       }
       
-      setRoutes(processedRoutes);
+      // FINAL CHECK: Remove any route with unrealistic walking
+      const finalRoutes = processedRoutes.filter(route => {
+        // Check if any step has walking over 10km
+        const hasLongWalk = route.steps.some(step => {
+          if (step.instruction && step.instruction.includes('km')) {
+            const kmMatch = step.instruction.match(/(\d+\.?\d*)\s*km/);
+            if (kmMatch) {
+              const km = parseFloat(kmMatch[1]);
+              if (km > 3) {
+                console.log('FINAL BLOCK: Removing route with', km, 'km walk');
+                return true;
+              }
+            }
+          }
+          return false;
+        });
+        return !hasLongWalk;
+      });
+      
+      setRoutes(finalRoutes);
     } catch (error) {
       console.error('Trip planning error:', error);
       // No fallback to mock data - show empty results
