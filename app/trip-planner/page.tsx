@@ -409,12 +409,12 @@ export default function TripPlanner() {
           // Calculate total duration from legs if not provided
           const totalDuration = plan.duration || plan.legs?.reduce((sum: number, leg: any) => sum + (leg.duration || 0), 0) || 2400; // Default 40 min
           
-          const route = {
+          const route: RouteOption = {
             id: `transit-${index}`,
             totalTime: Math.round(totalDuration / 60),
             totalCost: plan.cost || DEFAULT_TRIP_FARE, // $3.00 with free transfers
             co2Saved: Math.round((plan.walking_distance || plan.distance || 5000) * 0.0008 * 100) / 100, // Calculate based on actual distance
-            type: 'fastest', // Will be reassigned based on actual comparison
+            type: 'fastest' as const, // Will be reassigned based on actual comparison
             steps: plan.legs.map((leg: any) => {
               // Build proper instruction text
               let instruction = '';
