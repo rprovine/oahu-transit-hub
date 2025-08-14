@@ -21,7 +21,14 @@ export default function SignUp() {
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  const supabase = createClientComponentClient();
+  const [supabase] = useState(() => {
+    try {
+      return createClientComponentClient();
+    } catch (error) {
+      console.error('Supabase client creation failed:', error);
+      return null;
+    }
+  });
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +49,10 @@ export default function SignUp() {
     }
 
     try {
+      if (!supabase) {
+        throw new Error('Authentication service is not available');
+      }
+
       // Create user with Supabase
       const { data, error } = await supabase.auth.signUp({
         email,

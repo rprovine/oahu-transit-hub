@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     }
 
     const mapboxService = new MapboxService();
-    const bias = lat && lon ? [parseFloat(lon), parseFloat(lat)] : undefined;
+    const bias: [number, number] | undefined = lat && lon ? [parseFloat(lon), parseFloat(lat)] : undefined;
     
     const suggestions = await mapboxService.geocodeAddress(query, bias);
 
