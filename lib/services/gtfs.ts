@@ -227,13 +227,26 @@ Return ONLY a JSON array of route options with this exact format:
   }
 
   private getFallbackTripPlan(originLat: number, originLon: number, destLat: number, destLon: number): any {
-    // Determine best fallback route based on location
-    let route = 'C', routeName = 'Country Express', duration = 2700;
+    console.log('🔄 Fallback routing analysis...');
     
+    // Determine best fallback route based on location
+    let route = 'Multiple', routeName = 'See TheBus.org for routes', duration = 2700;
+    
+    // Check specific area patterns
     if (this.isInWaikiki(originLat, originLon) || this.isInWaikiki(destLat, destLon)) {
       route = '8'; routeName = 'Waikiki-Ala Moana'; duration = 1800;
+      console.log('📍 Fallback: Waikiki area - using Route 8');
     } else if (this.isHonoluluAirport(originLat, originLon) || this.isHonoluluAirport(destLat, destLon)) {
       route = '20'; routeName = 'Airport-Hickam'; duration = 2700;
+      console.log('📍 Fallback: Airport area - using Route 20');
+    } else if (this.isInWestOahu(originLat, originLon) && this.isAlaMoana(destLat, destLon)) {
+      route = 'C'; routeName = 'Country Express'; duration = 2700;
+      console.log('📍 Fallback: West Oahu to town - using Route C');
+    } else if (this.isInWestOahu(originLat, originLon) || this.isInWestOahu(destLat, destLon)) {
+      route = '40'; routeName = 'Honolulu-Ewa Beach Express'; duration = 3600;
+      console.log('📍 Fallback: West Oahu area - using Route 40');
+    } else {
+      console.log('📍 Fallback: General routing advice - multiple routes may be needed');
     }
     
     return {
@@ -275,10 +288,11 @@ Return ONLY a JSON array of route options with this exact format:
   }
 
   private async generateRealOahuRoutes(originLat: number, originLon: number, destLat: number, destLon: number): Promise<any[]> {
-    // Real Oahu coordinate ranges and route patterns
+    console.log(`Routing analysis: Origin [${originLat}, ${originLon}] → Destination [${destLat}, ${destLon}]`);
     
     // Kapolei/West Oahu to Ko Olina (very close)
     if (this.isInWestOahu(originLat, originLon) && this.isKoOlina(destLat, destLon)) {
+      console.log('✓ Detected: West Oahu → Ko Olina route');
       return [{
         duration: 1200, // 20 minutes
         walking_distance: 500,
@@ -314,6 +328,7 @@ Return ONLY a JSON array of route options with this exact format:
     
     // West Oahu to Ala Moana/Town (major commuter route)
     if (this.isInWestOahu(originLat, originLon) && this.isAlaMoana(destLat, destLon)) {
+      console.log('✓ Detected: West Oahu → Ala Moana (Route C)');
       return [{
         duration: 2700, // 45 minutes (Route C Express)
         walking_distance: 600,
@@ -349,6 +364,7 @@ Return ONLY a JSON array of route options with this exact format:
     
     // Waikiki to Diamond Head
     if (this.isInWaikiki(originLat, originLon) && this.isDiamondHead(destLat, destLon)) {
+      console.log('✓ Detected: Waikiki → Diamond Head (Route 23)');
       return [{
         duration: 1800, // 30 minutes
         walking_distance: 600,
@@ -384,6 +400,7 @@ Return ONLY a JSON array of route options with this exact format:
     
     // Airport routes (Route 20)
     if (this.isHonoluluAirport(originLat, originLon) || this.isHonoluluAirport(destLat, destLon)) {
+      console.log('✓ Detected: Airport route (Route 20)');
       return [{
         duration: 2700, // 45 minutes
         walking_distance: 500,
@@ -417,32 +434,43 @@ Return ONLY a JSON array of route options with this exact format:
       }];
     }
     
+    console.log('❌ No coordinate-based route match found - using fallback');
     return [];
   }
   
   // Helper methods for coordinate detection
   private isInWestOahu(lat: number, lon: number): boolean {
-    return lat >= 21.30 && lat <= 21.35 && lon >= -158.10 && lon <= -158.00; // Kapolei/Ewa area
+    // Expanded range for West Oahu (Kapolei, Ewa Beach, etc.)
+    console.log(`  🔍 West Oahu check: ${lat}, ${lon}`);
+    return lat >= 21.29 && lat <= 21.37 && lon >= -158.15 && lon <= -157.95;
   }
   
   private isKoOlina(lat: number, lon: number): boolean {
-    return lat >= 21.315 && lat <= 21.320 && lon >= -158.125 && lon <= -158.120; // Ko Olina Resort area
+    console.log(`  🔍 Ko Olina check: ${lat}, ${lon}`);
+    return lat >= 21.31 && lat <= 21.325 && lon >= -158.13 && lon <= -158.11; // Ko Olina Resort area
   }
   
   private isAlaMoana(lat: number, lon: number): boolean {
-    return lat >= 21.285 && lat <= 21.295 && lon >= -157.850 && lon <= -157.835; // Ala Moana area
+    // Ala Moana Center area
+    console.log(`  🔍 Ala Moana check: ${lat}, ${lon}`);
+    return lat >= 21.28 && lat <= 21.30 && lon >= -157.86 && lon <= -157.83;
   }
   
   private isInWaikiki(lat: number, lon: number): boolean {
-    return lat >= 21.265 && lat <= 21.285 && lon >= -157.835 && lon <= -157.815; // Waikiki area
+    // Expanded Waikiki area
+    console.log(`  🔍 Waikiki check: ${lat}, ${lon}`);
+    return lat >= 21.26 && lat <= 21.29 && lon >= -157.84 && lon <= -157.81;
   }
   
   private isDiamondHead(lat: number, lon: number): boolean {
-    return lat >= 21.255 && lat <= 21.270 && lon >= -157.815 && lon <= -157.800; // Diamond Head area
+    console.log(`  🔍 Diamond Head check: ${lat}, ${lon}`);
+    return lat >= 21.25 && lat <= 21.27 && lon >= -157.82 && lon <= -157.80; // Diamond Head area
   }
   
   private isHonoluluAirport(lat: number, lon: number): boolean {
-    return lat >= 21.315 && lat <= 21.325 && lon >= -157.930 && lon <= -157.915; // HNL Airport area
+    // HNL Airport area
+    console.log(`  🔍 Airport check: ${lat}, ${lon}`);
+    return lat >= 21.31 && lat <= 21.33 && lon >= -157.94 && lon <= -157.91;
   }
 
   private async fetchTheBusRoutes(): Promise<BusRoute[]> {
