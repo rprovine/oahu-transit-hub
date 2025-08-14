@@ -251,6 +251,16 @@ export default function LocalDashboard() {
 
       // Navigate to route details page
       const routeId = `${route.type}-${Date.now()}`;
+      
+      // Store route data in localStorage for the route page
+      const routeData = {
+        ...route,
+        origin,
+        destination,
+        selectedAt: new Date().toISOString()
+      };
+      localStorage.setItem(`route_${routeId}`, JSON.stringify(routeData));
+      
       window.location.href = `/route/${routeId}?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&type=${route.type}`;
     } catch (error) {
       console.error('Failed to select route:', error);
