@@ -441,19 +441,29 @@ export default function TripPlanner() {
             co2Saved: Math.round((plan.walking_distance || plan.distance || 5000) * 0.0008 * 100) / 100, // Calculate based on actual distance
             type: 'fastest' as const, // Will be reassigned based on actual comparison
             steps: plan.legs.map((leg: any) => {
-              // Use API instruction if available, otherwise build one
-              let instruction = '';
-              if (leg.instruction) {
-                // Use the instruction from the API as-is
-                instruction = leg.instruction;
-              } else if (leg.mode === 'WALK') {
-                const walkMin = Math.round((leg.duration || 300) / 60);
-                instruction = `Walk ${walkMin} min to ${leg.to?.name || 'destination'}`;
-              } else if (leg.mode === 'TRANSIT') {
-                const routeName = leg.routeName || leg.route || 'Bus';
-                instruction = `Take ${routeName} to ${leg.to?.name || 'destination'}`;
-              } else {
-                instruction = `${leg.mode} to ${leg.to?.name || 'destination'}`;
+              console.log('Processing leg:', {
+                mode: leg.mode,
+                instruction: leg.instruction,
+                detail: leg.detail,
+                walkingDirections: leg.walkingDirections,
+                stopInfo: leg.stopInfo,
+                from: leg.from,
+                to: leg.to
+              });
+              
+              // Always use API instruction if available
+              let instruction = leg.instruction;
+              if (!instruction) {
+                // Only build instruction if not provided by API
+                if (leg.mode === 'WALK') {
+                  const walkMin = Math.round((leg.duration || 300) / 60);
+                  instruction = `Walk ${walkMin} min to ${leg.to?.name || 'destination'}`;
+                } else if (leg.mode === 'TRANSIT') {
+                  const routeName = leg.routeName || leg.route || 'Bus';
+                  instruction = `Take ${routeName} to ${leg.to?.name || 'destination'}`;
+                } else {
+                  instruction = `${leg.mode} to ${leg.to?.name || 'destination'}`;
+                }
               }
               
               return {
@@ -462,9 +472,11 @@ export default function TripPlanner() {
                 duration: Math.round((leg.duration || 600) / 60), // Default 10 min if missing
                 route: leg.route,
                 detail: leg.detail || null,
-                stopId: leg.stopId || null,
+                stopId: leg.stopId || leg.to?.stopId || null,
                 headsign: leg.headsign || null,
-                distance: leg.distance || null
+                distance: leg.distance || null,
+                walkingDirections: leg.walkingDirections || null,
+                stopInfo: leg.stopInfo || null
               };
             })
           };
@@ -472,7 +484,13 @@ export default function TripPlanner() {
           console.log('Created route:', {
             id: route.id,
             totalTime: route.totalTime,
-            steps: route.steps.map(s => ({ mode: s.mode, instruction: s.instruction }))
+            steps: route.steps.map(s => ({ 
+              mode: s.mode, 
+              instruction: s.instruction,
+              detail: s.detail,
+              walkingDirections: s.walkingDirections,
+              stopInfo: s.stopInfo
+            }))
           });
           validRoutes.push(route);
         });
