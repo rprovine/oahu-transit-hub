@@ -103,7 +103,8 @@ export class MapboxService {
     }
     
     // Known problematic addresses - return corrected coordinates
-    if (searchQuery.toLowerCase().includes('91-1020 palala') && searchQuery.toLowerCase().includes('kapolei')) {
+    if (searchQuery.toLowerCase().includes('91-1020 palala') || 
+        (searchQuery.toLowerCase().includes('palala') && searchQuery.toLowerCase().includes('kapolei'))) {
       // This is near KAMOKILA BL + KAPOLEI PKWY bus stop
       return [{
         id: 'corrected-kapolei-palala',
@@ -116,7 +117,8 @@ export class MapboxService {
       }];
     }
     
-    if (searchQuery.toLowerCase().includes('845 gulick') && searchQuery.toLowerCase().includes('honolulu')) {
+    if (searchQuery.toLowerCase().includes('845 gulick') || 
+        (searchQuery.toLowerCase().includes('gulick') && searchQuery.toLowerCase().includes('honolulu'))) {
       // This is near DILLINGHAM BL + MCNEILL ST bus stop
       return [{
         id: 'corrected-gulick',
