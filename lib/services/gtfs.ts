@@ -21,6 +21,7 @@ interface BusRoute {
 
 interface BusStop {
   stop_id: string;
+  stop_code?: string;
   stop_name: string;
   stop_desc: string;
   stop_lat: number;
@@ -453,11 +454,30 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
                 mode: 'TRANSIT',
                 route: route.route_short_name || route.route_id,
                 routeName: route.route_long_name || route.route_short_name || `Route ${route.route_id}`,
-                from: { lat: originStop.stop_lat, lon: originStop.stop_lon, name: originStop.stop_name },
-                to: { lat: destStop.stop_lat, lon: destStop.stop_lon, name: destStop.stop_name },
+                from: { 
+                  lat: originStop.stop_lat, 
+                  lon: originStop.stop_lon, 
+                  name: originStop.stop_name,
+                  stopId: originStop.stop_id,
+                  stopCode: originStop.stop_code
+                },
+                to: { 
+                  lat: destStop.stop_lat, 
+                  lon: destStop.stop_lon, 
+                  name: destStop.stop_name,
+                  stopId: destStop.stop_id,
+                  stopCode: destStop.stop_code
+                },
                 duration: transitTime * 60,
                 headsign: route.route_long_name || `To ${destStop.stop_name}`,
-                instruction: `Take Route ${route.route_short_name || route.route_id} to ${destStop.stop_name}`
+                instruction: `Take Route ${route.route_short_name || route.route_id} (${route.route_long_name}) from ${originStop.stop_name} to ${destStop.stop_name}`,
+                detail: `Board at Stop #${originStop.stop_id}. Exit at Stop #${destStop.stop_id}. ${this.estimateStopCount(originStop, destStop)} stops.`,
+                stopInfo: {
+                  boardingStop: `${originStop.stop_name} (#${originStop.stop_id})`,
+                  exitStop: `${destStop.stop_name} (#${destStop.stop_id})`,
+                  routeColor: route.route_color,
+                  routeTextColor: route.route_text_color
+                }
               },
               {
                 mode: 'WALK',
@@ -551,6 +571,18 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
     
     // Sort by total travel time
     return routes.sort((a, b) => a.duration - b.duration).slice(0, 3); // Return top 3 options
+  }
+
+  private estimateStopCount(originStop: GTFSStop, destStop: GTFSStop): string {
+    // Estimate based on distance - roughly 1 stop per 400m in urban areas
+    const distanceKm = this.calculateDistance(
+      originStop.stop_lat, 
+      originStop.stop_lon,
+      destStop.stop_lat,
+      destStop.stop_lon
+    );
+    const estimatedStops = Math.max(1, Math.round(distanceKm / 0.4));
+    return `Approximately ${estimatedStops}`;
   }
 
   private estimateGTFSTransitTime(routeId: string, originStop: GTFSStop, destStop: GTFSStop): number {

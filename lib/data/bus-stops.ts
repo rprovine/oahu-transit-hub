@@ -1,6 +1,8 @@
 export interface BusStop {
   stop_id: string;
+  stop_code?: string;
   stop_name: string;
+  stop_desc?: string;
   stop_lat: number;
   stop_lon: number;
   routes: string[];
