@@ -50,6 +50,18 @@ export default function TripPlanner() {
 
   // Load saved locations and URL parameters on mount
   useEffect(() => {
+    // Initialize GTFS data in the background
+    fetch('/api/transit/init')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          console.log('✅ GTFS data initialized:', data.summary);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to initialize GTFS data:', err);
+      });
+    
     // Always check URL parameters first - this takes priority
     const params = new URLSearchParams(window.location.search);
     const urlOrigin = params.get('origin');

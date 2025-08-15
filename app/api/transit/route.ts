@@ -79,6 +79,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { action, origin, destination, time } = body;
+    
+    console.log('🚀 Transit API called at:', new Date().toISOString());
 
     if (action !== 'plan_trip') {
       return NextResponse.json(

@@ -325,13 +325,15 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
     return degrees * (Math.PI/180);
   }
 
+
   private async generateRealOahuRoutes(originLat: number, originLon: number, destLat: number, destLon: number): Promise<any[]> {
     console.log(`🚌 Real GTFS routing: [${originLat}, ${originLon}] → [${destLat}, ${destLon}]`);
     
-    // Ensure GTFS data is loaded
+    // Check if GTFS data is loaded
     if (!gtfsMemoryProcessor.hasData()) {
-      console.log('📥 Loading GTFS data...');
-      await gtfsMemoryProcessor.downloadAndProcessGTFS();
+      console.log('⚠️ GTFS data not loaded yet');
+      // Return empty array to trigger fallback to Claude API
+      return [];
     }
     
     // Find actual nearby bus stops using real GTFS data
