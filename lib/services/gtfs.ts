@@ -268,45 +268,44 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
   }
 
   private getFallbackTripPlan(originLat: number, originLon: number, destLat: number, destLon: number): any {
-    console.log('🚕 No transit options found - suggesting rideshare/taxi');
+    console.log('📍 No direct routes found, searching for transfer options...');
     
-    // Calculate approximate distance for rideshare estimates
-    const distanceKm = this.calculateDistance(originLat, originLon, destLat, destLon);
-    const estimatedDuration = Math.max(900, distanceKm * 120); // Min 15 min, ~2 min per km
-    const estimatedCost = Math.max(15, distanceKm * 3.5); // Oahu taxi rates: ~$3.50/km + base fare
+    // Try to find routes with one transfer using cached GTFS data
+    const cachedService = new GTFSCachedService();
     
+    // Find nearby stops with larger radius
+    const originStops = cachedService.findNearbyStops(originLat, originLon, 2.0); // 2km radius
+    const destStops = cachedService.findNearbyStops(destLat, destLon, 2.0);
+    
+    if (originStops.length === 0 || destStops.length === 0) {
+      console.log('❌ No bus stops found within 2km');
+      return {
+        plans: [],
+        message: 'No bus stops found within walking distance'
+      };
+    }
+    
+    // Get all routes for origin and destination stops
+    const originRoutes = new Set<string>();
+    const destRoutes = new Set<string>();
+    
+    originStops.forEach(stop => {
+      const routes = cachedService.getRoutesForStop(stop.stop_id);
+      routes.forEach(r => originRoutes.add(r.route_id));
+    });
+    
+    destStops.forEach(stop => {
+      const routes = cachedService.getRoutesForStop(stop.stop_id);
+      routes.forEach(r => destRoutes.add(r.route_id));
+    });
+    
+    console.log(`Origin routes: ${[...originRoutes].join(', ')}`);
+    console.log(`Destination routes: ${[...destRoutes].join(', ')}`);
+    
+    // If still no transit, return empty plans (no rideshare fallback)
     return {
-      plans: [
-        {
-          duration: estimatedDuration,
-          walking_distance: 100, // Just to car pickup
-          transfers: 0,
-          cost: estimatedCost,
-          mode: 'RIDESHARE',
-          legs: [
-            {
-              mode: 'RIDESHARE',
-              provider: 'Uber/Lyft/Taxi',
-              from: { lat: originLat, lon: originLon, name: 'Current Location' },
-              to: { lat: destLat, lon: destLon, name: 'Destination' },
-              duration: estimatedDuration,
-              distance: distanceKm * 1000,
-              instruction: `No public transit available. Consider rideshare (~$${estimatedCost.toFixed(0)}) or taxi service.`,
-              headsign: 'Direct Ride',
-              alternatives: [
-                'Uber - Download app or call',
-                'Lyft - Available in most areas',
-                'Local taxi companies',
-                'Hotel shuttle (if available)'
-              ]
-            }
-          ],
-          note: `Distance: ${distanceKm.toFixed(1)} km. Public transit may not serve this route efficiently.`
-        }
-      ],
-      success: true,
-      transitUnavailable: true,
-      message: 'No efficient public transit route found. Rideshare or taxi recommended.'
+      plans: [],
+      message: 'No transit routes available for this trip'
     };
   }
 

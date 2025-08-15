@@ -54,15 +54,23 @@ export class MapboxService {
 
   constructor() {
     this.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || '';
+    if (!this.accessToken) {
+      console.error('⚠️ WARNING: No Mapbox access token found! API calls will fail and use fallback.');
+    } else {
+      console.log('✅ Mapbox service initialized with token:', this.accessToken.substring(0, 10) + '...');
+    }
   }
 
   async geocodeAddress(query: string, bias?: [number, number]): Promise<LocationSuggestion[]> {
     try {
-      // First, check if this is a known tourist destination
+      // Use Mapbox API directly with query expansion
+      return await this.getMapboxSuggestions(query, bias);
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      // Try tourist destinations as fallback
       const touristDest = findDestination(query);
       if (touristDest) {
-        // Return the verified coordinates as the first result
-        const touristSuggestion: LocationSuggestion = {
+        return [{
           id: `tourist-${touristDest.name}`,
           text: touristDest.name,
           place_name: `${touristDest.name}, Honolulu, HI`,
@@ -71,19 +79,8 @@ export class MapboxService {
             category: touristDest.category,
             landmark: true
           }
-        };
-        
-        // Also get Mapbox suggestions but tourist destination comes first
-        const mapboxSuggestions = await this.getMapboxSuggestions(query, bias);
-        return [touristSuggestion, ...mapboxSuggestions.filter(s => 
-          !s.text.toLowerCase().includes(touristDest.name.toLowerCase())
-        )];
+        }];
       }
-      
-      // If not a known tourist destination, use Mapbox API
-      return await this.getMapboxSuggestions(query, bias);
-    } catch (error) {
-      console.error('Geocoding error:', error);
       return this.getFallbackSuggestions(query);
     }
   }
@@ -93,121 +90,85 @@ export class MapboxService {
     let searchQuery = query
       .replace(/, United States/gi, '')
       .replace(/, USA/gi, '')
+      .replace(/\s+/g, ' ') // Normalize whitespace
       .trim();
     
-    // Ensure Hawaii context is in the query
-    if (!searchQuery.toLowerCase().includes('hawaii') && 
-        !searchQuery.toLowerCase().includes(' hi ') &&
-        !searchQuery.toLowerCase().includes(', hi')) {
-      searchQuery = `${searchQuery}, Hawaii`;
+    // Ensure proper Hawaii context for better Mapbox results
+    // Check if Hawaii context is missing
+    const hasHawaiiContext = searchQuery.toLowerCase().includes('hawaii') || 
+                            searchQuery.toLowerCase().includes(', hi') ||
+                            searchQuery.toLowerCase().includes(' hi ') ||
+                            searchQuery.toLowerCase().includes('honolulu') ||
+                            searchQuery.toLowerCase().includes('oahu');
+    
+    // Add Hawaii context if missing - this helps Mapbox find the right location
+    if (!hasHawaiiContext) {
+      // Check if it's a city-specific query
+      if (searchQuery.toLowerCase().includes('kapolei') || 
+          searchQuery.toLowerCase().includes('aiea') || 
+          searchQuery.toLowerCase().includes('pearl city') ||
+          searchQuery.toLowerCase().includes('kaneohe') ||
+          searchQuery.toLowerCase().includes('kailua')) {
+        searchQuery = `${searchQuery}, Hawaii`;
+      } else if (searchQuery.toLowerCase().includes('waikiki') ||
+                 searchQuery.toLowerCase().includes('diamond head') ||
+                 searchQuery.toLowerCase().includes('ala moana')) {
+        searchQuery = `${searchQuery}, Honolulu, Hawaii`;
+      } else {
+        // Default to adding Hawaii for context
+        searchQuery = `${searchQuery}, Hawaii`;
+      }
     }
     
-    // Known problematic addresses and common locations - return corrected coordinates
+    // Use appropriate proximity bias based on location
+    let proximity = bias || [-157.8583, 21.3099]; // Default to Honolulu
+    
+    // Adjust proximity for known areas to improve results
     const queryLower = searchQuery.toLowerCase();
-    
-    // Airport variations
-    if (queryLower.includes('airport') || queryLower.includes('hnl') || 
-        queryLower.includes('daniel k inouye')) {
-      return [{
-        id: 'honolulu-airport',
-        text: 'Daniel K. Inouye International Airport (HNL)',
-        place_name: 'Honolulu International Airport, Honolulu, HI 96819',
-        center: [-157.9180, 21.3187], // Actual airport coordinates
-        properties: {
-          category: 'airport',
-          landmark: true
-        }
-      }];
+    if (queryLower.includes('kapolei')) {
+      proximity = [-158.086, 21.3285];
+    } else if (queryLower.includes('pearl')) {
+      proximity = [-157.9623, 21.3649];
+    } else if (queryLower.includes('waikiki')) {
+      proximity = [-157.8294, 21.2793];
+    } else if (queryLower.includes('kailua')) {
+      proximity = [-157.7394, 21.3972];
+    } else if (queryLower.includes('kaneohe')) {
+      proximity = [-157.8036, 21.4098];
     }
     
-    // Waikiki Beach
-    if (queryLower.includes('waikiki beach') || queryLower === 'waikiki') {
-      return [{
-        id: 'waikiki-beach',
-        text: 'Waikiki Beach',
-        place_name: 'Waikiki Beach, Honolulu, HI 96815',
-        center: [-157.8294, 21.2793], // Central Waikiki coordinates
-        properties: {
-          category: 'beach',
-          landmark: true
-        }
-      }];
-    }
-    
-    // Pearl Harbor
-    if (queryLower.includes('pearl harbor')) {
-      return [{
-        id: 'pearl-harbor',
-        text: 'Pearl Harbor',
-        place_name: 'Pearl Harbor, Honolulu, HI 96860',
-        center: [-157.9623, 21.3649], // Pearl Harbor visitor center
-        properties: {
-          category: 'landmark',
-          landmark: true
-        }
-      }];
-    }
-    
-    // Ala Moana Center
-    if (queryLower.includes('ala moana')) {
-      return [{
-        id: 'ala-moana',
-        text: 'Ala Moana Center',
-        place_name: 'Ala Moana Center, Honolulu, HI 96814',
-        center: [-157.8420, 21.2906], // Ala Moana Center
-        properties: {
-          category: 'shopping',
-          landmark: true
-        }
-      }];
-    }
-    
-    if (queryLower.includes('91-1020 palala') || 
-        (queryLower.includes('palala') && queryLower.includes('kapolei'))) {
-      // This is near KAMOKILA BL + KAPOLEI PKWY bus stop
-      return [{
-        id: 'corrected-kapolei-palala',
-        text: '91-1020 Palala Street',
-        place_name: '91-1020 Palala Street, Kapolei, HI 96707',
-        center: [-158.0865, 21.3283], // Corrected coordinates near bus stop
-        properties: {
-          address: '91-1020 Palala Street'
-        }
-      }];
-    }
-    
-    if (queryLower.includes('845 gulick') || 
-        (queryLower.includes('gulick') && queryLower.includes('honolulu'))) {
-      // This is near DILLINGHAM BL + MCNEILL ST bus stop
-      return [{
-        id: 'corrected-gulick',
-        text: '845 Gulick Avenue',
-        place_name: '845 Gulick Avenue, Honolulu, HI 96819',
-        center: [-157.8775, 21.3246], // Corrected coordinates near bus stop
-        properties: {
-          address: '845 Gulick Avenue'
-        }
-      }];
-    }
-    
-    // For Kapolei addresses, use specific bias
-    const isKapolei = searchQuery.toLowerCase().includes('kapolei');
-    const proximity = isKapolei ? [-158.086, 21.3285] : (bias || [-157.8583, 21.3099]);
     const bbox = [-158.2878,21.2044,-157.6417,21.7135]; // Oahu bounding box
     
-    const response = await fetch(
-      `${this.baseUrl}/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?` +
+    console.log('Mapbox query:', searchQuery, 'Proximity:', proximity);
+    const url = `${this.baseUrl}/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?` +
       `access_token=${this.accessToken}&` +
       `proximity=${proximity[0]},${proximity[1]}&` +
       `bbox=${bbox.join(',')}&` +
       `country=US&` +
-      `limit=8&` +
-      `types=address,poi,place`
-    );
+      `limit=10&` +
+      `types=address,poi,place,locality,neighborhood&` +
+      `language=en`;
+    
+    console.log('Mapbox URL:', url);
+    const response = await fetch(url);
 
-    if (!response.ok) throw new Error('Geocoding failed');
+    if (!response.ok) {
+      console.error('Mapbox API error:', response.status, response.statusText);
+      throw new Error('Geocoding failed');
+    }
 
     const data = await response.json();
+    console.log(`Mapbox returned ${data.features?.length || 0} results for "${searchQuery}"`);
+    
+    // Log the first result for debugging
+    if (data.features?.length > 0) {
+      console.log('First result:', {
+        text: data.features[0].text,
+        place_name: data.features[0].place_name,
+        center: data.features[0].center,
+        relevance: data.features[0].relevance
+      });
+    }
     
     return data.features.map((feature: any) => ({
       id: feature.id,
@@ -226,20 +187,40 @@ export class MapboxService {
     try {
       const { origin, destination, profile, alternatives = true, steps = true } = options;
       
+      console.log('🗺️ Mapbox getDirections called with:', {
+        origin,
+        destination,
+        profile,
+        originLonLat: `[${origin[0]}, ${origin[1]}]`,
+        destLonLat: `[${destination[0]}, ${destination[1]}]`
+      });
+      
       const coordinates = `${origin[0]},${origin[1]};${destination[0]},${destination[1]}`;
       
-      const response = await fetch(
-        `${this.baseUrl}/directions/v5/mapbox/${profile}/${coordinates}?` +
+      const url = `${this.baseUrl}/directions/v5/mapbox/${profile}/${coordinates}?` +
         `access_token=${this.accessToken}&` +
         `alternatives=${alternatives}&` +
         `steps=${steps}&` +
         `geometries=geojson&` +
-        `overview=full`
-      );
+        `overview=full`;
+      
+      console.log('📍 Mapbox API URL:', url.replace(this.accessToken, 'REDACTED'));
+      
+      const response = await fetch(url);
 
-      if (!response.ok) throw new Error('Directions failed');
+      if (!response.ok) {
+        console.error('❌ Mapbox API failed:', response.status, response.statusText);
+        throw new Error('Directions failed');
+      }
 
       const data = await response.json();
+      
+      console.log('✅ Mapbox API response:', {
+        routes: data.routes?.length || 0,
+        firstRouteDistance: data.routes?.[0]?.distance,
+        firstRouteDuration: data.routes?.[0]?.duration,
+        distanceInKm: data.routes?.[0]?.distance ? (data.routes[0].distance / 1000).toFixed(2) : 'N/A'
+      });
       
       return data.routes.map((route: any) => ({
         duration: route.duration,
@@ -254,7 +235,7 @@ export class MapboxService {
         legs: route.legs
       }));
     } catch (error) {
-      console.error('Directions error:', error);
+      console.error('❌ Directions error, using fallback:', error);
       return this.getFallbackRoute(options);
     }
   }
@@ -324,9 +305,23 @@ export class MapboxService {
   }
 
   private getFallbackRoute(options: RouteOptions): Route[] {
+    console.log('⚠️ Using fallback route calculation for:', {
+      origin: options.origin,
+      destination: options.destination,
+      profile: options.profile
+    });
+    
     // Simple fallback route calculation
     const distanceMiles = this.calculateDistance(options.origin, options.destination);
+    const distanceMeters = distanceMiles * 1609.34;
     const durationMinutes = distanceMiles * (options.profile === 'walking' ? 20 : options.profile === 'cycling' ? 4 : 2); // rough estimates
+    
+    console.log('📏 Fallback distance calculation:', {
+      distanceMiles: distanceMiles.toFixed(2),
+      distanceMeters: distanceMeters.toFixed(0),
+      distanceKm: (distanceMeters / 1000).toFixed(2),
+      durationMinutes: durationMinutes.toFixed(0)
+    });
 
     return [{
       duration: Math.round(durationMinutes * 60), // convert to seconds

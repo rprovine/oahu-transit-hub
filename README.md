@@ -36,17 +36,13 @@ A comprehensive public transit application for Oahu, Hawaii, featuring real-time
 - **🎯 Smart Route Classification**: Mathematically accurate fastest, cheapest, and greenest route identification
 
 ### Integrated APIs & Services
-1. **TheBus GTFS-RT API**: Real-time Honolulu bus data and trip planning
-2. **HART Skyline GTFS-RT API**: Live rail system data and schedules (21 stations)
-3. **StormGlass Marine API**: Ocean conditions for beach routes
-4. **OpenWeather API**: Real-time weather data
-5. **Mapbox**: Interactive mapping, geocoding, and navigation
-6. **Claude AI (Anthropic)**: Intelligent trip planning and route optimization
-7. **HubSpot CRM**: Customer lifecycle management and analytics
-8. **Google Places API**: Address validation and geocoding fallback
-9. **Supabase**: Backend infrastructure and authentication
-10. **Browser Geolocation API**: Real-time location tracking
-11. **Web Speech API**: Hawaiian pronunciation audio guides
+1. **TheBus GTFS API**: Real-time Honolulu bus data with 3,787 stops and 119 routes
+2. **Google Places API**: Primary geocoding service for accurate Hawaii location search
+3. **Mapbox API**: Walking/cycling directions and route visualization
+4. **Claude AI (Anthropic)**: Intelligent trip planning and route optimization
+5. **GTFS Cached Service**: Pre-processed transit data for fast route finding
+6. **Browser Geolocation API**: Real-time location tracking
+7. **Supabase**: Backend infrastructure and authentication
 
 ### Transit Routing System
 - **Real Bus Stop Database**: Accurate bus stop locations with coordinates throughout Oahu
@@ -102,10 +98,15 @@ A comprehensive public transit application for Oahu, Hawaii, featuring real-time
    ```
    Then edit `.env.local` with your API keys:
    ```env
-   # Required for trip planning
+   # Required APIs for full functionality
    NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN=your_mapbox_token
+   GOOGLE_PLACES_API_KEY=your_google_places_api_key
    THEBUS_API_KEY=your_thebus_api_key
    ANTHROPIC_API_KEY=your_anthropic_api_key
+   
+   # Optional but recommended
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
    ```
 
 4. **Set up Supabase database** (optional)
@@ -123,6 +124,29 @@ A comprehensive public transit application for Oahu, Hawaii, featuring real-time
    
    The GTFS data will automatically download when you first use the trip planner.
    To manually update: `GET /api/transit/update-gtfs`
+
+## 🔌 API Integration Details
+
+### Google Places API
+The application uses Google Places API as the primary geocoding service for accurate Hawaii location search:
+- **Text Search**: Finds POIs like "airport", "Waikiki Beach", etc.
+- **Geocoding**: Converts addresses to coordinates
+- **Autocomplete**: Provides location suggestions as users type
+- **Hawaii-optimized**: Automatically adds Hawaii context and uses Oahu bounding box
+
+### GTFS Transit Data
+Real-time bus data from TheBus GTFS feed:
+- **3,787 bus stops** with accurate coordinates
+- **119 bus routes** covering all of Oahu
+- **Cached for performance**: Pre-processed at build time (~460KB)
+- **Smart route finding**: Direct routes and transfer options
+- **Walking distance calculation**: Uses Haversine formula for accuracy
+
+### Mapbox API
+Used for complementary services:
+- **Walking directions**: Turn-by-turn pedestrian routing
+- **Cycling directions**: Bike-friendly route planning
+- **Fallback geocoding**: When Google Places doesn't return results
 
 ## 🚌 Transit API Configuration
 

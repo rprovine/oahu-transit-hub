@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MapboxService } from '@/lib/services/mapbox';
+import { GooglePlacesService } from '@/lib/services/google-places';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,10 +16,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const mapboxService = new MapboxService();
+    // Try Google Places first for better POI recognition
+    const googleService = new GooglePlacesService();
     const bias: [number, number] | undefined = lat && lon ? [parseFloat(lon), parseFloat(lat)] : undefined;
     
-    const suggestions = await mapboxService.geocodeAddress(query, bias);
+    let suggestions = await googleService.geocodeAddress(query, bias);
+    
+    // Fallback to Mapbox if Google doesn't return results
+    if (suggestions.length === 0) {
+      console.log('Google Places returned no results, trying Mapbox...');
+      const mapboxService = new MapboxService();
+      suggestions = await mapboxService.geocodeAddress(query, bias);
+    }
 
     return NextResponse.json({
       success: true,
@@ -45,6 +54,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('🚶 Geocode API received coordinates:', {
+      origin: origin,
+      destination: destination,
+      originArray: [origin.lon, origin.lat],
+      destArray: [destination.lon, destination.lat]
+    });
+    
     const mapboxService = new MapboxService();
     
     // Get directions for different travel modes
