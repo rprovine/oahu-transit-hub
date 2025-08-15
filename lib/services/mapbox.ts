@@ -325,16 +325,16 @@ export class MapboxService {
 
   private getFallbackRoute(options: RouteOptions): Route[] {
     // Simple fallback route calculation
-    const distance = this.calculateDistance(options.origin, options.destination);
-    const duration = distance * (options.profile === 'walking' ? 12 : options.profile === 'cycling' ? 4 : 2); // rough estimates
+    const distanceMiles = this.calculateDistance(options.origin, options.destination);
+    const durationMinutes = distanceMiles * (options.profile === 'walking' ? 20 : options.profile === 'cycling' ? 4 : 2); // rough estimates
 
     return [{
-      duration: Math.round(duration * 60), // convert to seconds
-      distance: Math.round(distance * 1000), // convert to meters
+      duration: Math.round(durationMinutes * 60), // convert to seconds
+      distance: Math.round(distanceMiles * 1609.34), // convert miles to meters
       geometry: '', // would need actual polyline
       legs: [{
-        distance: Math.round(distance * 1000),
-        duration: Math.round(duration * 60),
+        distance: Math.round(distanceMiles * 1609.34), // convert miles to meters
+        duration: Math.round(durationMinutes * 60),
         steps: []
       }]
     }];
