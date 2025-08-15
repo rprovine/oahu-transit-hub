@@ -505,150 +505,8 @@ export default function TripPlanner() {
         (origin.toLowerCase().includes('diamond') && destination.toLowerCase().includes('waikiki')) ||
         (origin.toLowerCase().includes('head') && destination.toLowerCase().includes('waikiki'));
       
-      if (validRoutes.length === 0) { // Only add mock routes if GTFS returned nothing
-        if (isWaikikiToDiamondHead) {
-          console.log('Adding Waikiki to Diamond Head routes');
-          // Route 23 or 24 - Direct bus routes
-          validRoutes.push({
-            id: 'route-23',
-            totalTime: 20,
-            totalCost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
-            co2Saved: 1.2,
-            type: 'fastest',
-            steps: [
-              { mode: 'walk', instruction: 'Walk to Kuhio Ave bus stop', duration: 3 },
-              { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 12, route: '23' },
-              { mode: 'walk', instruction: 'Walk to Diamond Head entrance', duration: 5 }
-            ]
-          });
-          
-          // Alternative with Route 24
-          validRoutes.push({
-            id: 'route-24',
-            totalTime: 22,
-            totalCost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
-            co2Saved: 1.2,
-            type: 'cheapest',
-            steps: [
-              { mode: 'walk', instruction: 'Walk to Kalakaua Ave bus stop', duration: 4 },
-              { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 13, route: '24' },
-              { mode: 'walk', instruction: 'Walk to Diamond Head entrance', duration: 5 }
-            ]
-          });
-          
-          // Walking option if close enough (it's about 2.5km)
-          if (routingData.success && routingData.routes?.walking?.length > 0) {
-            const walkingRoute = routingData.routes.walking[0];
-            const walkingDistanceKm = walkingRoute.distance / 1000;
-            if (walkingDistanceKm <= 3) {
-              validRoutes.push({
-                id: 'walking',
-                totalTime: 35,
-                totalCost: 0,
-                co2Saved: 1.0,
-                type: 'greenest',
-                steps: [
-                  { mode: 'walk', instruction: `Walk ${Math.round(walkingDistanceKm * 10) / 10} km along Kalakaua Ave and Diamond Head Rd`, duration: 35 }
-                ]
-              });
-            }
-          }
-        } else if (isDiamondHeadToWaikiki) {
-          console.log('Adding Diamond Head to Waikiki routes');
-          // Reverse routes
-          validRoutes.push({
-            id: 'route-23-return',
-            totalTime: 20,
-            totalCost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
-            co2Saved: 1.2,
-            type: 'fastest',
-            steps: [
-              { mode: 'walk', instruction: 'Walk to Diamond Head bus stop', duration: 5 },
-              { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 12, route: '23' },
-              { mode: 'walk', instruction: 'Walk to destination', duration: 3 }
-            ]
-          });
-        }
-        
-        // Check if this is Kapolei to Kalihi trip
-        const isKapoleiToKalihi = (origin.toLowerCase().includes('kapolei') || origin.toLowerCase().includes('palala')) &&
-                                  (destination.toLowerCase().includes('gulick') || destination.toLowerCase().includes('kalihi'));
-        
-        if (isKapoleiToKalihi) {
-          console.log('Adding Kapolei to Kalihi bus routes');
-          // Route C (Country Express) + Route 1 transfer
-          validRoutes.push({
-            id: 'route-c-1',
-            totalTime: 55,
-            totalCost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
-            co2Saved: 4.5,
-            type: 'fastest',
-            steps: [
-              { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
-              { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 35, route: 'C' },
-              { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 10, route: '1' },
-              { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
-            ]
-          });
-          
-          // Route 41 direct (if available)
-          validRoutes.push({
-            id: 'route-41',
-            totalTime: 45,
-            totalCost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
-            co2Saved: 4.2,
-            type: 'cheapest',
-            steps: [
-              { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
-              { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 35, route: '41' },
-              { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
-            ]
-          });
-        } else {
-          console.log('Adding standard Oahu bus routes');
-          // Default routes for other trips
-          validRoutes.push({
-            id: 'route-40',
-            totalTime: 45,
-            totalCost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
-            co2Saved: 4.2,
-            type: 'fastest',
-            steps: [
-              { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
-              { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 35, route: 'API' },
-              { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
-            ]
-          });
-          
-          validRoutes.push({
-            id: 'route-42',
-            totalTime: 55,
-            totalCost: DEFAULT_TRIP_FARE, // $3.00 with free transfers
-            co2Saved: 4.0,
-            type: 'cheapest',
-            steps: [
-              { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
-              { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 45, route: 'API' },
-              { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
-            ]
-          });
-        }
-        
-        // Add Skyline (HART) rail option
-        validRoutes.push({
-          id: 'skyline-rail',
-          totalTime: 50,
-          totalCost: DEFAULT_TRIP_FARE,
-          co2Saved: 5.0, // Rail is more eco-friendly
-          type: 'greenest',
-          steps: [
-            { mode: 'walk', instruction: 'Walk to nearest Skyline station', duration: 8 },
-            { mode: 'rail', instruction: 'Real HART Skyline API integration needed', duration: 20, route: 'HART' },
-            { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 17, route: '20' },
-            { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
-          ]
-        });
-      }
+      // NEVER add mock routes - only use real GTFS data
+      // The user explicitly stated they don't want fallback routes
       
       // Correctly classify routes based on actual data
       if (validRoutes.length > 0) {
@@ -727,21 +585,10 @@ export default function TripPlanner() {
       });
       console.log('After final filter, finalRoutes:', finalRoutes.length);
       
-      // If we blocked all routes due to long walks, show bus routes instead
+      // No mock routes - only real GTFS data
       if (finalRoutes.length === 0 && processedRoutes.length > 0) {
-        console.log('All routes had long walks - adding bus routes instead');
-        finalRoutes.push({
-          id: 'route-40',
-          totalTime: 45,
-          totalCost: DEFAULT_TRIP_FARE,
-          co2Saved: 4.2,
-          type: 'fastest',
-          steps: [
-            { mode: 'walk', instruction: 'Walk to nearest bus stop', duration: 5 },
-            { mode: 'bus', instruction: 'Real TheBus API integration needed', duration: 35, route: 'API' },
-            { mode: 'walk', instruction: 'Walk to destination', duration: 5 }
-          ]
-        });
+        console.log('All routes had long walks - not adding mock bus routes');
+        // User explicitly stated they don't want fallback routes
       }
       
       setRoutes(finalRoutes);

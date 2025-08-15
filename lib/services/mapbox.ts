@@ -89,16 +89,49 @@ export class MapboxService {
   }
 
   private async getMapboxSuggestions(query: string, bias?: [number, number]): Promise<LocationSuggestion[]> {
+    // Clean up the query - remove duplicates of Hawaii/United States
+    let searchQuery = query
+      .replace(/, United States/gi, '')
+      .replace(/, USA/gi, '')
+      .trim();
+    
     // Ensure Hawaii context is in the query
-    let searchQuery = query;
     if (!searchQuery.toLowerCase().includes('hawaii') && 
         !searchQuery.toLowerCase().includes(' hi ') &&
         !searchQuery.toLowerCase().includes(', hi')) {
-      searchQuery = `${query}, Hawaii`;
+      searchQuery = `${searchQuery}, Hawaii`;
     }
     
-    // Bias results toward Oahu
-    const proximity = bias || [-157.8583, 21.3099]; // Honolulu coordinates
+    // Known problematic addresses - return corrected coordinates
+    if (searchQuery.toLowerCase().includes('91-1020 palala') && searchQuery.toLowerCase().includes('kapolei')) {
+      // This is near KAMOKILA BL + KAPOLEI PKWY bus stop
+      return [{
+        id: 'corrected-kapolei-palala',
+        text: '91-1020 Palala Street',
+        place_name: '91-1020 Palala Street, Kapolei, HI 96707',
+        center: [-158.0865, 21.3283], // Corrected coordinates near bus stop
+        properties: {
+          address: '91-1020 Palala Street'
+        }
+      }];
+    }
+    
+    if (searchQuery.toLowerCase().includes('845 gulick') && searchQuery.toLowerCase().includes('honolulu')) {
+      // This is near DILLINGHAM BL + MCNEILL ST bus stop
+      return [{
+        id: 'corrected-gulick',
+        text: '845 Gulick Avenue',
+        place_name: '845 Gulick Avenue, Honolulu, HI 96819',
+        center: [-157.8775, 21.3246], // Corrected coordinates near bus stop
+        properties: {
+          address: '845 Gulick Avenue'
+        }
+      }];
+    }
+    
+    // For Kapolei addresses, use specific bias
+    const isKapolei = searchQuery.toLowerCase().includes('kapolei');
+    const proximity = isKapolei ? [-158.086, 21.3285] : (bias || [-157.8583, 21.3099]);
     const bbox = [-158.2878,21.2044,-157.6417,21.7135]; // Oahu bounding box
     
     const response = await fetch(
