@@ -209,8 +209,14 @@ export class MapboxService {
       const response = await fetch(url);
 
       if (!response.ok) {
-        console.error('❌ Mapbox API failed:', response.status, response.statusText);
-        throw new Error('Directions failed');
+        const errorText = await response.text();
+        console.error('❌ Mapbox API failed:', {
+          status: response.status, 
+          statusText: response.statusText,
+          error: errorText,
+          url: url.replace(this.accessToken, 'REDACTED')
+        });
+        throw new Error(`Mapbox API failed: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();

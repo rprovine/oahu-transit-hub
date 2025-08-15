@@ -80,8 +80,48 @@ export default function TripPlanner() {
     
     // Set URL parameters immediately if they exist
     if (urlOrigin) {
-      setOrigin(decodeURIComponent(urlOrigin));
+      const originValue = decodeURIComponent(urlOrigin);
+      // If origin is "Your Current Location", get actual location
+      if (originValue === 'Your Current Location' || originValue.includes('Current Location')) {
+        setOrigin('My Current Location');
+        // Get actual geolocation
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              setOrigin('My Current Location');
+              // Store coordinates for later use
+              localStorage.setItem('current_location_coords', JSON.stringify({
+                lat: position.coords.latitude,
+                lon: position.coords.longitude
+              }));
+            },
+            (error) => {
+              console.error('Geolocation error:', error);
+              setOrigin('My Current Location');
+            }
+          );
+        }
+      } else {
+        setOrigin(originValue);
+      }
+    } else {
+      // No URL param, try to use current location by default
+      setOrigin('My Current Location');
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            localStorage.setItem('current_location_coords', JSON.stringify({
+              lat: position.coords.latitude,
+              lon: position.coords.longitude
+            }));
+          },
+          (error) => {
+            console.error('Geolocation error:', error);
+          }
+        );
+      }
     }
+    
     if (urlDestination) {
       setDestination(decodeURIComponent(urlDestination));
     }
@@ -303,17 +343,29 @@ export default function TripPlanner() {
     try {
       let originCoords, destCoords;
 
-      // Handle "Your Current Location" specially
-      if (origin === 'Your Current Location' || origin.includes('Current Location')) {
-        // Get current position using browser geolocation
-        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 60000
+      // Handle current location specially
+      if (origin === 'My Current Location' || origin === 'Your Current Location' || origin.includes('Current Location')) {
+        // First try to get from localStorage if we already have it
+        const storedCoords = localStorage.getItem('current_location_coords');
+        if (storedCoords) {
+          const coords = JSON.parse(storedCoords);
+          originCoords = [coords.lon, coords.lat];
+        } else {
+          // Get current position using browser geolocation
+          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 60000
+            });
           });
-        });
-        originCoords = [position.coords.longitude, position.coords.latitude];
+          originCoords = [position.coords.longitude, position.coords.latitude];
+          // Store for future use
+          localStorage.setItem('current_location_coords', JSON.stringify({
+            lat: position.coords.latitude,
+            lon: position.coords.longitude
+          }));
+        }
       } else {
         // Geocode the origin address
         const originGeocode = await fetch(`/api/geocode?q=${encodeURIComponent(origin)}`);
@@ -895,8 +947,17 @@ export default function TripPlanner() {
                   disabled={!origin || !destination || isPlanning}
                   className="w-full bg-ocean-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-ocean-700 transition-colors disabled:bg-gray-400 flex items-center justify-center gap-2"
                 >
-                  <Navigation className="h-5 w-5" />
-                  {isPlanning ? 'Planning Trip...' : 'Plan My Trip'}
+                  {isPlanning ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      <span>Planning Trip...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Navigation className="h-5 w-5" />
+                      <span>Plan My Trip</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -927,8 +988,21 @@ export default function TripPlanner() {
             </div>
           </div>
 
+          {/* Loading Overlay */}
+          {isPlanning && (
+            <div className="bg-white rounded-lg shadow-lg p-8">
+              <div className="flex flex-col items-center justify-center space-y-4">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-ocean-600"></div>
+                <h3 className="text-xl font-semibold text-gray-700">Finding the best routes for you...</h3>
+                <p className="text-gray-500 text-center max-w-md">
+                  We're checking real-time bus schedules and calculating optimal connections
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Route Options */}
-          {routes.length > 0 && (
+          {!isPlanning && routes.length > 0 && (
             <div className="space-y-6">
               <h3 className="text-2xl font-bold text-volcanic-900">Route Options</h3>
               
