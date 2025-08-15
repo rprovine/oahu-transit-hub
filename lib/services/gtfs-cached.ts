@@ -46,11 +46,32 @@ export class GTFSCachedService {
   }
 
   findDirectRoutes(originLat: number, originLon: number, destLat: number, destLon: number) {
-    // Find nearby stops
-    const originStops = this.findNearbyStops(originLat, originLon);
-    const destStops = this.findNearbyStops(destLat, destLon);
+    // Find nearby stops - try expanding radius if needed
+    let originStops = this.findNearbyStops(originLat, originLon, 0.8);
+    let destStops = this.findNearbyStops(destLat, destLon, 0.8);
+    
+    // If no stops within 800m, try 1.5km
+    if (originStops.length === 0) {
+      console.log('No stops within 800m of origin, expanding to 1.5km');
+      originStops = this.findNearbyStops(originLat, originLon, 1.5);
+    }
+    if (destStops.length === 0) {
+      console.log('No stops within 800m of destination, expanding to 1.5km');
+      destStops = this.findNearbyStops(destLat, destLon, 1.5);
+    }
+    
+    // If still no stops, try 2km (for places like airport)
+    if (originStops.length === 0) {
+      console.log('No stops within 1.5km of origin, expanding to 2km');
+      originStops = this.findNearbyStops(originLat, originLon, 2.0);
+    }
+    if (destStops.length === 0) {
+      console.log('No stops within 1.5km of destination, expanding to 2km');
+      destStops = this.findNearbyStops(destLat, destLon, 2.0);
+    }
 
     if (originStops.length === 0 || destStops.length === 0) {
+      console.log(`No bus stops found even at 2km: origin=${originStops.length}, dest=${destStops.length}`);
       return [];
     }
 
