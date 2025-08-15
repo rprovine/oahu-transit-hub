@@ -109,44 +109,26 @@ export async function POST(request: NextRequest) {
     let originCoords, destCoords;
     
     if (typeof origin === 'string') {
-      // Use hardcoded coordinates for known addresses
-      const knownCoords: Record<string, [number, number]> = {
-        '91-1020 palala street': [-158.086, 21.3285],
-        '845 gulick avenue': [-157.914, 21.336],
-      };
-      
-      const originLower = origin.toLowerCase();
-      let found = false;
-      for (const [pattern, coords] of Object.entries(knownCoords)) {
-        if (originLower.includes(pattern)) {
-          console.log('📍 Using known origin coordinates for:', pattern);
-          originCoords = coords;
-          found = true;
-          break;
-        }
-      }
-      
-      if (!found) {
-        // Try geocoding with Mapbox
-        console.log('📍 Geocoding origin string:', origin);
-        try {
-          const mapboxService = new (await import('@/lib/services/mapbox')).MapboxService();
-          const suggestions = await mapboxService.geocodeAddress(origin);
-          if (suggestions?.[0]?.center) {
-            originCoords = suggestions[0].center;
-          } else {
-            return NextResponse.json(
-              { success: false, error: 'Failed to geocode origin address' },
-              { status: 400 }
-            );
-          }
-        } catch (error) {
-          console.error('Geocoding failed:', error);
+      // Geocode with Mapbox directly
+      console.log('📍 Geocoding origin string:', origin);
+      try {
+        const mapboxService = new (await import('@/lib/services/mapbox')).MapboxService();
+        const suggestions = await mapboxService.geocodeAddress(origin);
+        if (suggestions?.[0]?.center) {
+          originCoords = suggestions[0].center;
+          console.log('✅ Origin geocoded to:', originCoords);
+        } else {
           return NextResponse.json(
             { success: false, error: 'Failed to geocode origin address' },
             { status: 400 }
           );
         }
+      } catch (error) {
+        console.error('Geocoding failed:', error);
+        return NextResponse.json(
+          { success: false, error: 'Failed to geocode origin address' },
+          { status: 400 }
+        );
       }
     } else if (origin?.lat !== undefined && origin?.lon !== undefined) {
       originCoords = [origin.lon, origin.lat];
@@ -158,44 +140,26 @@ export async function POST(request: NextRequest) {
     }
 
     if (typeof destination === 'string') {
-      // Use hardcoded coordinates for known addresses
-      const knownCoords: Record<string, [number, number]> = {
-        '91-1020 palala street': [-158.086, 21.3285],
-        '845 gulick avenue': [-157.914, 21.336],
-      };
-      
-      const destLower = destination.toLowerCase();
-      let found = false;
-      for (const [pattern, coords] of Object.entries(knownCoords)) {
-        if (destLower.includes(pattern)) {
-          console.log('📍 Using known destination coordinates for:', pattern);
-          destCoords = coords;
-          found = true;
-          break;
-        }
-      }
-      
-      if (!found) {
-        // Try geocoding with Mapbox
-        console.log('📍 Geocoding destination string:', destination);
-        try {
-          const mapboxService = new (await import('@/lib/services/mapbox')).MapboxService();
-          const suggestions = await mapboxService.geocodeAddress(destination);
-          if (suggestions?.[0]?.center) {
-            destCoords = suggestions[0].center;
-          } else {
-            return NextResponse.json(
-              { success: false, error: 'Failed to geocode destination address' },
-              { status: 400 }
-            );
-          }
-        } catch (error) {
-          console.error('Geocoding failed:', error);
+      // Geocode with Mapbox directly
+      console.log('📍 Geocoding destination string:', destination);
+      try {
+        const mapboxService = new (await import('@/lib/services/mapbox')).MapboxService();
+        const suggestions = await mapboxService.geocodeAddress(destination);
+        if (suggestions?.[0]?.center) {
+          destCoords = suggestions[0].center;
+          console.log('✅ Destination geocoded to:', destCoords);
+        } else {
           return NextResponse.json(
             { success: false, error: 'Failed to geocode destination address' },
             { status: 400 }
           );
         }
+      } catch (error) {
+        console.error('Geocoding failed:', error);
+        return NextResponse.json(
+          { success: false, error: 'Failed to geocode destination address' },
+          { status: 400 }
+        );
       }
     } else if (destination?.lat !== undefined && destination?.lon !== undefined) {
       destCoords = [destination.lon, destination.lat];
