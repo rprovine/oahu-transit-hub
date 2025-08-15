@@ -102,9 +102,68 @@ export class MapboxService {
       searchQuery = `${searchQuery}, Hawaii`;
     }
     
-    // Known problematic addresses - return corrected coordinates
-    if (searchQuery.toLowerCase().includes('91-1020 palala') || 
-        (searchQuery.toLowerCase().includes('palala') && searchQuery.toLowerCase().includes('kapolei'))) {
+    // Known problematic addresses and common locations - return corrected coordinates
+    const queryLower = searchQuery.toLowerCase();
+    
+    // Airport variations
+    if (queryLower.includes('airport') || queryLower.includes('hnl') || 
+        queryLower.includes('daniel k inouye')) {
+      return [{
+        id: 'honolulu-airport',
+        text: 'Daniel K. Inouye International Airport (HNL)',
+        place_name: 'Honolulu International Airport, Honolulu, HI 96819',
+        center: [-157.9180, 21.3187], // Actual airport coordinates
+        properties: {
+          category: 'airport',
+          landmark: true
+        }
+      }];
+    }
+    
+    // Waikiki Beach
+    if (queryLower.includes('waikiki beach') || queryLower === 'waikiki') {
+      return [{
+        id: 'waikiki-beach',
+        text: 'Waikiki Beach',
+        place_name: 'Waikiki Beach, Honolulu, HI 96815',
+        center: [-157.8294, 21.2793], // Central Waikiki coordinates
+        properties: {
+          category: 'beach',
+          landmark: true
+        }
+      }];
+    }
+    
+    // Pearl Harbor
+    if (queryLower.includes('pearl harbor')) {
+      return [{
+        id: 'pearl-harbor',
+        text: 'Pearl Harbor',
+        place_name: 'Pearl Harbor, Honolulu, HI 96860',
+        center: [-157.9623, 21.3649], // Pearl Harbor visitor center
+        properties: {
+          category: 'landmark',
+          landmark: true
+        }
+      }];
+    }
+    
+    // Ala Moana Center
+    if (queryLower.includes('ala moana')) {
+      return [{
+        id: 'ala-moana',
+        text: 'Ala Moana Center',
+        place_name: 'Ala Moana Center, Honolulu, HI 96814',
+        center: [-157.8420, 21.2906], // Ala Moana Center
+        properties: {
+          category: 'shopping',
+          landmark: true
+        }
+      }];
+    }
+    
+    if (queryLower.includes('91-1020 palala') || 
+        (queryLower.includes('palala') && queryLower.includes('kapolei'))) {
       // This is near KAMOKILA BL + KAPOLEI PKWY bus stop
       return [{
         id: 'corrected-kapolei-palala',
@@ -117,8 +176,8 @@ export class MapboxService {
       }];
     }
     
-    if (searchQuery.toLowerCase().includes('845 gulick') || 
-        (searchQuery.toLowerCase().includes('gulick') && searchQuery.toLowerCase().includes('honolulu'))) {
+    if (queryLower.includes('845 gulick') || 
+        (queryLower.includes('gulick') && queryLower.includes('honolulu'))) {
       // This is near DILLINGHAM BL + MCNEILL ST bus stop
       return [{
         id: 'corrected-gulick',
