@@ -337,6 +337,8 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
       if (routes.length > 0) {
         console.log(`✅ Found ${routes.length} cached routes`);
         return routes;
+      } else {
+        console.log('📍 No direct routes found from cached service');
       }
     } catch (error) {
       console.log('Cached service failed, falling back to memory processor:', error);
@@ -434,10 +436,18 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
               {
                 mode: 'WALK',
                 from: { lat: originLat, lon: originLon, name: 'Starting Location' },
-                to: { lat: originStop.stop_lat, lon: originStop.stop_lon, name: originStop.stop_name },
+                to: { 
+                  lat: originStop.stop_lat, 
+                  lon: originStop.stop_lon, 
+                  name: originStop.stop_name,
+                  stopId: originStop.stop_id,
+                  stopCode: originStop.stop_code
+                },
                 duration: walkToStopTime * 60,
                 distance: Math.round(originStop.distance! * 1000),
-                instruction: `Walk ${walkToStopTime} min to ${originStop.stop_name}`
+                instruction: `Walk ${walkToStopTime} min (${Math.round(originStop.distance! * 1000)}m) to ${originStop.stop_name}`,
+                detail: `Stop #${originStop.stop_id}${originStop.stop_desc ? ` - ${originStop.stop_desc}` : ''}`,
+                walkingDirections: `Head to bus stop at ${originStop.stop_name}. Look for stop sign #${originStop.stop_id}.`
               },
               {
                 mode: 'TRANSIT',
@@ -492,10 +502,18 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
               {
                 mode: 'WALK',
                 from: { lat: originLat, lon: originLon, name: 'Starting Location' },
-                to: { lat: originStop.stop_lat, lon: originStop.stop_lon, name: originStop.stop_name },
+                to: { 
+                  lat: originStop.stop_lat, 
+                  lon: originStop.stop_lon, 
+                  name: originStop.stop_name,
+                  stopId: originStop.stop_id,
+                  stopCode: originStop.stop_code
+                },
                 duration: walkToStopTime * 60,
                 distance: Math.round(originStop.distance! * 1000),
-                instruction: `Walk ${walkToStopTime} min to ${originStop.stop_name}`
+                instruction: `Walk ${walkToStopTime} min (${Math.round(originStop.distance! * 1000)}m) to ${originStop.stop_name}`,
+                detail: `Stop #${originStop.stop_id}${originStop.stop_desc ? ` - ${originStop.stop_desc}` : ''}`,
+                walkingDirections: `Head to bus stop at ${originStop.stop_name}. Look for stop sign #${originStop.stop_id}.`
               },
               {
                 mode: 'TRANSIT',

@@ -46,9 +46,13 @@ export class GTFSCachedService {
   }
 
   findDirectRoutes(originLat: number, originLon: number, destLat: number, destLon: number) {
+    console.log(`🔍 GTFS Cached: Finding routes from [${originLat}, ${originLon}] to [${destLat}, ${destLon}]`);
+    
     // Find nearby stops - try expanding radius if needed
     let originStops = this.findNearbyStops(originLat, originLon, 0.8);
     let destStops = this.findNearbyStops(destLat, destLon, 0.8);
+    
+    console.log(`📍 Initial search: ${originStops.length} origin stops, ${destStops.length} dest stops within 800m`);
     
     // If no stops within 800m, try 1.5km
     if (originStops.length === 0) {
@@ -73,6 +77,20 @@ export class GTFSCachedService {
     if (originStops.length === 0 || destStops.length === 0) {
       console.log(`No bus stops found even at 2km: origin=${originStops.length}, dest=${destStops.length}`);
       return [];
+    }
+
+    // Log the nearest stops for debugging
+    if (originStops.length > 0) {
+      console.log(`🚏 Nearest origin stops:`);
+      originStops.slice(0, 3).forEach(s => {
+        console.log(`   - ${s.stop_name} (${(s.distance! * 1000).toFixed(0)}m)`);
+      });
+    }
+    if (destStops.length > 0) {
+      console.log(`🚏 Nearest destination stops:`);
+      destStops.slice(0, 3).forEach(s => {
+        console.log(`   - ${s.stop_name} (${(s.distance! * 1000).toFixed(0)}m)`);
+      });
     }
 
     const routes = [];
