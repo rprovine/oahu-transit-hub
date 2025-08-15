@@ -173,6 +173,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!originCoords || !destCoords) {
+      return NextResponse.json(
+        { success: false, error: 'Failed to determine coordinates' },
+        { status: 400 }
+      );
+    }
+
     console.log('🗺️ Using coordinates:', {
       origin: originCoords,
       destination: destCoords
