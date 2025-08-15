@@ -7,6 +7,7 @@ import {
   OAHU_BUS_STOPS 
 } from '@/lib/data/bus-stops';
 import { gtfsMemoryProcessor, GTFSStop } from './gtfs-memory-processor';
+import { GTFSCachedService } from './gtfs-cached';
 
 interface BusRoute {
   route_id: string;
@@ -329,16 +330,23 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
   private async generateRealOahuRoutes(originLat: number, originLon: number, destLat: number, destLon: number): Promise<any[]> {
     console.log(`🚌 Real GTFS routing: [${originLat}, ${originLon}] → [${destLat}, ${destLon}]`);
     
-    // Check if GTFS data is loaded
-    if (!gtfsMemoryProcessor.hasData()) {
-      console.log('⚠️ GTFS data not loaded yet, attempting to load...');
-      try {
-        await gtfsMemoryProcessor.downloadAndProcessGTFS();
-        console.log('✅ GTFS data loaded successfully');
-      } catch (error) {
-        console.error('Failed to load GTFS data:', error);
-        return [];
+    // Use cached GTFS service for fast lookups
+    try {
+      const cachedService = new GTFSCachedService();
+      const routes = cachedService.findDirectRoutes(originLat, originLon, destLat, destLon);
+      
+      if (routes.length > 0) {
+        console.log(`✅ Found ${routes.length} cached routes`);
+        return routes;
       }
+    } catch (error) {
+      console.log('Cached service failed, falling back to memory processor:', error);
+    }
+    
+    // Fallback to memory processor if cached service fails
+    if (!gtfsMemoryProcessor.hasData()) {
+      console.log('⚠️ GTFS data not loaded yet');
+      return [];
     }
     
     // Find actual nearby bus stops using real GTFS data

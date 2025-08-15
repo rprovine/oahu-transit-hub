@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GTFSService } from '@/lib/services/gtfs';
 
+export const maxDuration = 60; // 60 seconds for Vercel Pro plan
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -106,8 +108,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Handle string addresses (geocode them first)
-    let originCoords: [number, number];
-    let destCoords: [number, number];
+    let originCoords: [number, number] | undefined;
+    let destCoords: [number, number] | undefined;
     
     if (typeof origin === 'string') {
       // Geocode with Mapbox directly

@@ -133,8 +133,10 @@ class GTFSMemoryProcessor {
             console.log(`✅ Loaded ${this.gtfsData.trips.length} trips`);
             break;
           case 'stop_times.txt':
-            // Parse all stop times - needed for route associations
-            this.gtfsData.stopTimes = this.parseStopTimes(content);
+            // Parse all stop times first
+            const allStopTimes = this.parseStopTimes(content);
+            // Keep all stop times for now - we need them for route finding
+            this.gtfsData.stopTimes = allStopTimes;
             console.log(`✅ Loaded ${this.gtfsData.stopTimes.length} stop times`);
             break;
           case 'calendar.txt':
