@@ -68,13 +68,13 @@ export class GTFSCachedService {
         );
 
         for (const route of commonRoutes) {
-          const walkToStopTime = Math.round((originStop.distance * 1000) / 80); // 80m/min
-          const walkFromStopTime = Math.round((destStop.distance * 1000) / 80);
+          const walkToStopTime = Math.round((originStop.distance! * 1000) / 80); // 80m/min
+          const walkFromStopTime = Math.round((destStop.distance! * 1000) / 80);
           const transitTime = this.estimateTransitTime(originStop, destStop);
 
           routes.push({
             duration: (walkToStopTime + transitTime + walkFromStopTime) * 60,
-            walking_distance: Math.round((originStop.distance + destStop.distance) * 1000),
+            walking_distance: Math.round((originStop.distance! + destStop.distance!) * 1000),
             transfers: 0,
             cost: 3.00,
             legs: [
@@ -83,7 +83,7 @@ export class GTFSCachedService {
                 from: { lat: originLat, lon: originLon, name: 'Starting Location' },
                 to: { lat: originStop.stop_lat, lon: originStop.stop_lon, name: originStop.stop_name },
                 duration: walkToStopTime * 60,
-                distance: Math.round(originStop.distance * 1000),
+                distance: Math.round(originStop.distance! * 1000),
                 instruction: `Walk ${walkToStopTime} min to ${originStop.stop_name}`
               },
               {
@@ -100,7 +100,7 @@ export class GTFSCachedService {
                 from: { lat: destStop.stop_lat, lon: destStop.stop_lon, name: destStop.stop_name },
                 to: { lat: destLat, lon: destLon, name: 'Destination' },
                 duration: walkFromStopTime * 60,
-                distance: Math.round(destStop.distance * 1000),
+                distance: Math.round(destStop.distance! * 1000),
                 instruction: `Walk ${walkFromStopTime} min to destination`
               }
             ]
