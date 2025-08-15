@@ -331,9 +331,14 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
     
     // Check if GTFS data is loaded
     if (!gtfsMemoryProcessor.hasData()) {
-      console.log('⚠️ GTFS data not loaded yet');
-      // Return empty array to trigger fallback to Claude API
-      return [];
+      console.log('⚠️ GTFS data not loaded yet, attempting to load...');
+      try {
+        await gtfsMemoryProcessor.downloadAndProcessGTFS();
+        console.log('✅ GTFS data loaded successfully');
+      } catch (error) {
+        console.error('Failed to load GTFS data:', error);
+        return [];
+      }
     }
     
     // Find actual nearby bus stops using real GTFS data

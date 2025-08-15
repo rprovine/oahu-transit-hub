@@ -58,6 +58,26 @@ export class MapboxService {
 
   async geocodeAddress(query: string, bias?: [number, number]): Promise<LocationSuggestion[]> {
     try {
+      // Check for known problematic addresses first
+      const knownAddresses: Record<string, { coords: [number, number], name: string }> = {
+        '91-1020 palala street': { coords: [-158.086, 21.3285], name: '91-1020 Palala Street, Kapolei, HI 96707' },
+        '845 gulick avenue': { coords: [-157.914, 21.336], name: '845 Gulick Avenue, Honolulu, HI 96819' },
+      };
+      
+      const queryLower = query.toLowerCase();
+      for (const [pattern, data] of Object.entries(knownAddresses)) {
+        if (queryLower.includes(pattern)) {
+          console.log('Using known coordinates for:', pattern);
+          return [{
+            id: 'known-address',
+            text: data.name,
+            place_name: data.name,
+            center: data.coords,
+            properties: { address: data.name }
+          }];
+        }
+      }
+      
       // First, check if this is a known tourist destination
       const touristDest = findDestination(query);
       if (touristDest) {
