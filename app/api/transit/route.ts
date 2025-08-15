@@ -106,7 +106,8 @@ export async function POST(request: NextRequest) {
     });
 
     // Handle string addresses (geocode them first)
-    let originCoords, destCoords;
+    let originCoords: [number, number];
+    let destCoords: [number, number];
     
     if (typeof origin === 'string') {
       // Geocode with Mapbox directly
@@ -114,8 +115,8 @@ export async function POST(request: NextRequest) {
       try {
         const mapboxService = new (await import('@/lib/services/mapbox')).MapboxService();
         const suggestions = await mapboxService.geocodeAddress(origin);
-        if (suggestions?.[0]?.center) {
-          originCoords = suggestions[0].center;
+        if (suggestions?.[0]?.center && suggestions[0].center.length === 2) {
+          originCoords = suggestions[0].center as [number, number];
           console.log('✅ Origin geocoded to:', originCoords);
         } else {
           return NextResponse.json(
@@ -131,7 +132,7 @@ export async function POST(request: NextRequest) {
         );
       }
     } else if (origin?.lat !== undefined && origin?.lon !== undefined) {
-      originCoords = [origin.lon, origin.lat];
+      originCoords = [origin.lon, origin.lat] as [number, number];
     } else {
       return NextResponse.json(
         { success: false, error: 'Invalid origin format' },
@@ -145,8 +146,8 @@ export async function POST(request: NextRequest) {
       try {
         const mapboxService = new (await import('@/lib/services/mapbox')).MapboxService();
         const suggestions = await mapboxService.geocodeAddress(destination);
-        if (suggestions?.[0]?.center) {
-          destCoords = suggestions[0].center;
+        if (suggestions?.[0]?.center && suggestions[0].center.length === 2) {
+          destCoords = suggestions[0].center as [number, number];
           console.log('✅ Destination geocoded to:', destCoords);
         } else {
           return NextResponse.json(
@@ -162,7 +163,7 @@ export async function POST(request: NextRequest) {
         );
       }
     } else if (destination?.lat !== undefined && destination?.lon !== undefined) {
-      destCoords = [destination.lon, destination.lat];
+      destCoords = [destination.lon, destination.lat] as [number, number];
     } else {
       return NextResponse.json(
         { success: false, error: 'Invalid destination format' },
