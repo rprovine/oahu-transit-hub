@@ -481,11 +481,18 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
               },
               {
                 mode: 'WALK',
-                from: { lat: destStop.stop_lat, lon: destStop.stop_lon, name: destStop.stop_name },
+                from: { 
+                  lat: destStop.stop_lat, 
+                  lon: destStop.stop_lon, 
+                  name: destStop.stop_name,
+                  stopId: destStop.stop_id
+                },
                 to: { lat: destLat, lon: destLon, name: 'Destination' },
                 duration: walkFromStopTime * 60,
                 distance: Math.round(destStop.distance! * 1000),
-                instruction: `Walk ${walkFromStopTime} min to destination`
+                instruction: `Walk ${walkFromStopTime} min (${Math.round(destStop.distance! * 1000)}m) from ${destStop.stop_name} to destination`,
+                detail: `Exit bus at Stop #${destStop.stop_id}. Walk to your final destination.`,
+                walkingDirections: `After exiting at ${destStop.stop_name}, walk ${Math.round(destStop.distance! * 1000)} meters to reach your destination.`
               }
             ]
           });
@@ -546,11 +553,18 @@ If NO reasonable transit exists, return exactly: NO_TRANSIT_AVAILABLE`;
               },
               {
                 mode: 'WALK',
-                from: { lat: destStop.stop_lat, lon: destStop.stop_lon, name: destStop.stop_name },
+                from: { 
+                  lat: destStop.stop_lat, 
+                  lon: destStop.stop_lon, 
+                  name: destStop.stop_name,
+                  stopId: destStop.stop_id
+                },
                 to: { lat: destLat, lon: destLon, name: 'Destination' },
                 duration: walkFromStopTime * 60,
                 distance: Math.round(destStop.distance! * 1000),
-                instruction: `Walk ${walkFromStopTime} min to destination`
+                instruction: `Walk ${walkFromStopTime} min (${Math.round(destStop.distance! * 1000)}m) from ${destStop.stop_name} to destination`,
+                detail: `Exit bus at Stop #${destStop.stop_id}. Walk to your final destination.`,
+                walkingDirections: `After exiting at ${destStop.stop_name}, walk ${Math.round(destStop.distance! * 1000)} meters to reach your destination.`
               }
             ]
           });

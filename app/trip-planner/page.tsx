@@ -21,6 +21,13 @@ interface TripStep {
   stopId?: string;
   headsign?: string;
   distance?: number;
+  walkingDirections?: string;
+  stopInfo?: {
+    boardingStop: string;
+    exitStop: string;
+    routeColor?: string;
+    routeTextColor?: string;
+  };
 }
 
 interface RouteOption {
@@ -978,12 +985,23 @@ export default function TripPlanner() {
                                   <div className="flex-1">
                                     <p className="font-semibold text-gray-900">{step.instruction}</p>
                                     {step.detail && (
-                                      <p className="text-sm text-gray-700 mt-1">{step.detail}</p>
+                                      <p className="text-sm text-gray-700 mt-1 bg-blue-50 p-2 rounded">{step.detail}</p>
+                                    )}
+                                    {step.walkingDirections && (
+                                      <div className="text-sm text-gray-600 mt-2 bg-yellow-50 p-2 rounded">
+                                        <span className="font-medium">📍 Directions:</span> {step.walkingDirections}
+                                      </div>
+                                    )}
+                                    {step.stopInfo && (
+                                      <div className="text-sm mt-2 space-y-1">
+                                        <p className="text-green-700 font-medium">🚏 Board: {step.stopInfo.boardingStop}</p>
+                                        <p className="text-red-700 font-medium">🛑 Exit: {step.stopInfo.exitStop}</p>
+                                      </div>
                                     )}
                                     {step.headsign && (
-                                      <p className="text-sm text-blue-600 mt-1">🚌 {step.headsign}</p>
+                                      <p className="text-sm text-blue-600 mt-1">🚌 Headsign: {step.headsign}</p>
                                     )}
-                                    {step.stopId && (
+                                    {step.stopId && !step.stopInfo && (
                                       <p className="text-xs text-gray-500 mt-1">Stop #{step.stopId}</p>
                                     )}
                                   </div>
