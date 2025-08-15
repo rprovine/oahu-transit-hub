@@ -219,7 +219,8 @@ export class MapboxService {
         routes: data.routes?.length || 0,
         firstRouteDistance: data.routes?.[0]?.distance,
         firstRouteDuration: data.routes?.[0]?.duration,
-        distanceInKm: data.routes?.[0]?.distance ? (data.routes[0].distance / 1000).toFixed(2) : 'N/A'
+        distanceInKm: data.routes?.[0]?.distance ? (data.routes[0].distance / 1000).toFixed(2) : 'N/A',
+        rawResponse: data.routes?.[0] // Log the full first route for debugging
       });
       
       return data.routes.map((route: any) => ({

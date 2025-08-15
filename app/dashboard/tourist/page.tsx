@@ -43,6 +43,7 @@ export default function EnhancedTouristDashboard() {
   const [destinations, setDestinations] = useState<TouristDestination[]>([]);
   const [loading, setLoading] = useState(true);
   const [crowdAlerts, setCrowdAlerts] = useState<any>(null);
+  const [loadingDirections, setLoadingDirections] = useState<string | null>(null);
 
   // Load location-aware destinations
   useEffect(() => {
@@ -135,74 +136,58 @@ export default function EnhancedTouristDashboard() {
     }
   };
   
-  const getDirections = async (destinationName: string) => {
-    try {
-      // Use location service for real-time location
-      const directions = await locationService.getDirectionsFromCurrentLocation(destinationName);
-      
-      // Check if HART Skyline is available for this route
-      if (locationContext?.location) {
-        const destination = destinations.find(d => d.name === destinationName);
-        if (destination) {
-          const multimodalPlan = await hartSkylineService.planMultimodalTrip(
-            [locationContext.location.longitude, locationContext.location.latitude],
-            destination.coordinates,
-            true // Include upcoming stations
-          );
-          
-          if (multimodalPlan.skylineAvailable) {
-            // Store both bus and rail options for comparison
-            localStorage.setItem('transit_options', JSON.stringify({
-              busOnly: directions,
-              multimodal: multimodalPlan,
-              destination: destinationName
-            }));
-          }
-        }
+  const getDirections = (destinationName: string) => {
+    // Set loading state
+    setLoadingDirections(destinationName);
+    
+    // Navigate immediately for better UX
+    let originLocation = 'Your Current Location';
+    
+    if (locationContext?.location) {
+      if (locationContext.location.address) {
+        originLocation = locationContext.location.address;
+      } else if (locationContext.location.district) {
+        originLocation = `${locationContext.location.district}, Oahu, HI`;
+      } else if (locationContext.location.islandRegion) {
+        originLocation = `${locationContext.location.islandRegion}, Oahu, HI`;
       }
-      
-      // Track direction request with full context
-      await fetch('/api/crm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'track_activity',
-          contactEmail: 'tourist@example.com',
-          activityType: 'directions_requested',
-          details: {
-            destination: destinationName,
-            user_location: locationContext?.location,
-            user_region: locationContext?.location?.islandRegion,
-            skyline_available: skylineStatus?.systemStatus === 'operational',
-            nearby_destinations: locationContext?.nearbyDestinations?.slice(0, 3).map(d => d.name)
-          }
-        })
-      });
-      
-      // Navigate to trip planner with enhanced data
-      let originLocation = 'Your Current Location';
-      
-      if (locationContext?.location) {
-        if (locationContext.location.address) {
-          originLocation = locationContext.location.address;
-        } else if (locationContext.location.district) {
-          originLocation = `${locationContext.location.district}, Oahu, HI`;
-        } else if (locationContext.location.islandRegion) {
-          originLocation = `${locationContext.location.islandRegion}, Oahu, HI`;
-        }
-      }
-      
-      const params = new URLSearchParams({
-        destination: destinationName,
-        origin: originLocation
-      });
-      
-      // Use window.location.href for immediate navigation with pre-filled fields
-      window.location.href = `/trip-planner?${params.toString()}`;
-    } catch (error) {
-      console.error('Failed to get directions:', error);
-      window.location.href = '/trip-planner';
     }
+    
+    const params = new URLSearchParams({
+      destination: destinationName,
+      origin: originLocation
+    });
+    
+    // Store destination data for the trip planner to use
+    const destination = destinations.find(d => d.name === destinationName);
+    if (destination) {
+      localStorage.setItem('tourist_destination', JSON.stringify({
+        name: destinationName,
+        coordinates: destination.coordinates,
+        category: destination.category,
+        from_location: locationContext?.location
+      }));
+    }
+    
+    // Navigate immediately - much better UX
+    window.location.href = `/trip-planner?${params.toString()}`;
+    
+    // Background tracking - don't wait for this
+    fetch('/api/crm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'track_activity',
+        contactEmail: 'tourist@example.com',
+        activityType: 'directions_requested',
+        details: {
+          destination: destinationName,
+          user_location: locationContext?.location,
+          user_region: locationContext?.location?.islandRegion,
+          skyline_available: skylineStatus?.systemStatus === 'operational'
+        }
+      })
+    }).catch(console.error);
   };
   
   const playPronunciation = (pronunciation: string) => {
@@ -623,10 +608,24 @@ export default function EnhancedTouristDashboard() {
                         <div className="ml-4">
                           <button 
                             onClick={() => getDirections(dest.name)}
-                            className="bg-tropical-600 text-white px-6 py-3 rounded-lg hover:bg-tropical-700 flex items-center justify-center gap-2"
+                            disabled={loadingDirections === dest.name}
+                            className={`px-6 py-3 rounded-lg flex items-center justify-center gap-2 transition-all ${
+                              loadingDirections === dest.name 
+                                ? 'bg-gray-400 cursor-not-allowed' 
+                                : 'bg-tropical-600 text-white hover:bg-tropical-700'
+                            }`}
                           >
-                            <Navigation className="h-5 w-5" />
-                            Get Directions
+                            {loadingDirections === dest.name ? (
+                              <>
+                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <Navigation className="h-5 w-5" />
+                                Get Directions
+                              </>
+                            )}
                           </button>
                           <div className="text-xs text-center text-gray-500 mt-2">
                             <div>Safety: {dest.safetyLevel}</div>
