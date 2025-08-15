@@ -93,6 +93,29 @@ export class GTFSCachedService {
           const walkFromStopTime = Math.round((destStop.distance! * 1000) / 80);
           const transitTime = this.estimateTransitTime(originStop, destStop);
 
+          // Format stop names to extract cross streets
+          const formatStopName = (stopName: string) => {
+            // Examples: "KALIHI ST + GULICK AVE" or "ALA MOANA BL + KEEAUMOKU ST"
+            if (stopName.includes(' + ')) {
+              const [street1, street2] = stopName.split(' + ');
+              return {
+                full: stopName,
+                main: street1,
+                cross: street2,
+                formatted: `${street1} at ${street2}`
+              };
+            }
+            return {
+              full: stopName,
+              main: stopName,
+              cross: '',
+              formatted: stopName
+            };
+          };
+
+          const originStopInfo = formatStopName(originStop.stop_name);
+          const destStopInfo = formatStopName(destStop.stop_name);
+
           routes.push({
             duration: (walkToStopTime + transitTime + walkFromStopTime) * 60,
             walking_distance: Math.round((originStop.distance! + destStop.distance!) * 1000),
@@ -102,27 +125,36 @@ export class GTFSCachedService {
               {
                 mode: 'WALK',
                 from: { lat: originLat, lon: originLon, name: 'Starting Location' },
-                to: { lat: originStop.stop_lat, lon: originStop.stop_lon, name: originStop.stop_name },
+                to: { lat: originStop.stop_lat, lon: originStop.stop_lon, name: originStopInfo.full },
                 duration: walkToStopTime * 60,
                 distance: Math.round(originStop.distance! * 1000),
-                instruction: `Walk ${walkToStopTime} min to ${originStop.stop_name}`
+                instruction: `Walk ${walkToStopTime} min (${Math.round(originStop.distance! * 1000)}m) to bus stop`,
+                detail: originStopInfo.cross ? 
+                  `${originStopInfo.main} at ${originStopInfo.cross}` : 
+                  originStopInfo.full,
+                stopId: originStop.stop_id
               },
               {
                 mode: 'TRANSIT',
                 route: route.route_short_name || route.route_id,
                 routeName: route.route_long_name || route.route_short_name,
-                from: { lat: originStop.stop_lat, lon: originStop.stop_lon, name: originStop.stop_name },
-                to: { lat: destStop.stop_lat, lon: destStop.stop_lon, name: destStop.stop_name },
+                from: { lat: originStop.stop_lat, lon: originStop.stop_lon, name: originStopInfo.full },
+                to: { lat: destStop.stop_lat, lon: destStop.stop_lon, name: destStopInfo.full },
                 duration: transitTime * 60,
-                instruction: `Take Route ${route.route_short_name || route.route_id} to ${destStop.stop_name}`
+                instruction: `Route ${route.route_short_name || route.route_id}: ${route.route_long_name || 'Bus'}`,
+                detail: `Board at ${originStopInfo.formatted} → Exit at ${destStopInfo.formatted}`,
+                headsign: this.getHeadsign(route.route_id, originStop.stop_id, destStop.stop_id),
+                stopId: destStop.stop_id
               },
               {
                 mode: 'WALK',
-                from: { lat: destStop.stop_lat, lon: destStop.stop_lon, name: destStop.stop_name },
+                from: { lat: destStop.stop_lat, lon: destStop.stop_lon, name: destStopInfo.full },
                 to: { lat: destLat, lon: destLon, name: 'Destination' },
                 duration: walkFromStopTime * 60,
                 distance: Math.round(destStop.distance! * 1000),
-                instruction: `Walk ${walkFromStopTime} min to destination`
+                instruction: `Walk ${walkFromStopTime} min (${Math.round(destStop.distance! * 1000)}m) to destination`,
+                detail: `From ${destStopInfo.formatted}`,
+                stopId: destStop.stop_id
               }
             ]
           });
@@ -157,5 +189,32 @@ export class GTFSCachedService {
     );
     // Estimate: 25 km/h average bus speed in urban areas
     return Math.round(distance / 25 * 60); // minutes
+  }
+
+  private getHeadsign(routeId: string, originStopId: string, destStopId: string): string {
+    // Determine direction based on route and stops
+    // This would ideally come from GTFS direction_id and trip_headsign
+    const route = this.routes.find(r => r.route_id === routeId);
+    if (!route) return '';
+
+    // Common headsign patterns for Oahu routes
+    const headsigns: Record<string, string[]> = {
+      '1': ['Kalihi Transit Center', 'Kaimuki-Kahala'],
+      '2': ['School Street', 'Waikiki Beach'],
+      '8': ['Waikiki', 'Ala Moana Center'],
+      '20': ['Airport', 'Waikiki', 'Pearlridge'],
+      '40': ['Makaha', 'Honolulu'],
+      'C': ['Kapolei', 'Downtown Honolulu'],
+      'E': ['Kalihi', 'University of Hawaii']
+    };
+
+    // Return the most likely headsign based on route
+    const routeHeadsigns = headsigns[route.route_short_name] || headsigns[routeId];
+    if (routeHeadsigns && routeHeadsigns.length > 0) {
+      return `To ${routeHeadsigns[0]}`;
+    }
+
+    // Fallback to route long name
+    return route.route_long_name || '';
   }
 }

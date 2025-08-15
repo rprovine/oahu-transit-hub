@@ -17,6 +17,10 @@ interface TripStep {
   duration: number;
   route?: string;
   color?: string;
+  detail?: string;
+  stopId?: string;
+  headsign?: string;
+  distance?: number;
 }
 
 interface RouteOption {
@@ -449,7 +453,11 @@ export default function TripPlanner() {
                 mode: leg.mode.toLowerCase() === 'transit' ? 'bus' : leg.mode.toLowerCase(),
                 instruction: instruction,
                 duration: Math.round((leg.duration || 600) / 60), // Default 10 min if missing
-                route: leg.route
+                route: leg.route,
+                detail: leg.detail || null,
+                stopId: leg.stopId || null,
+                headsign: leg.headsign || null,
+                distance: leg.distance || null
               };
             })
           };
@@ -954,25 +962,47 @@ export default function TripPlanner() {
                     <>
                       {/* Route Steps */}
                       <div className="space-y-3">
-                    <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                    <div className="space-y-4">
                       {route.steps.map((step, stepIdx) => (
-                        <div key={stepIdx} className="flex items-center gap-2 flex-shrink-0">
-                          <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-lg">
-                            <span className="text-lg">{getModeIcon(step.mode)}</span>
-                            <div className="text-center">
-                              <p className="text-xs font-medium">{step.instruction}</p>
-                              <p className="text-xs text-gray-600">{step.duration} min</p>
-                              {step.mode === 'bus' && step.route && (
-                                <div className="flex items-center gap-1 text-xs text-green-600 mt-1">
-                                  <Activity className="w-3 h-3 animate-pulse" />
-                                  <span>Live tracking</span>
+                        <div key={stepIdx} className="relative">
+                          {stepIdx < route.steps.length - 1 && (
+                            <div className="absolute left-6 top-12 w-0.5 h-full bg-gray-200" />
+                          )}
+                          <div className="flex gap-4">
+                            <div className="flex-shrink-0 w-12 h-12 bg-white border-2 border-gray-200 rounded-full flex items-center justify-center text-xl">
+                              {getModeIcon(step.mode)}
+                            </div>
+                            <div className="flex-1 pb-4">
+                              <div className="bg-gray-50 rounded-lg p-3">
+                                <div className="flex justify-between items-start">
+                                  <div className="flex-1">
+                                    <p className="font-semibold text-gray-900">{step.instruction}</p>
+                                    {step.detail && (
+                                      <p className="text-sm text-gray-700 mt-1">{step.detail}</p>
+                                    )}
+                                    {step.headsign && (
+                                      <p className="text-sm text-blue-600 mt-1">🚌 {step.headsign}</p>
+                                    )}
+                                    {step.stopId && (
+                                      <p className="text-xs text-gray-500 mt-1">Stop #{step.stopId}</p>
+                                    )}
+                                  </div>
+                                  <div className="text-right ml-4">
+                                    <p className="text-sm font-medium text-gray-900">{step.duration} min</p>
+                                    {step.distance && (
+                                      <p className="text-xs text-gray-500">{(step.distance / 1000).toFixed(1)} km</p>
+                                    )}
+                                  </div>
                                 </div>
-                              )}
+                                {step.mode === 'bus' && step.route && (
+                                  <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-200">
+                                    <Activity className="w-4 h-4 text-green-500 animate-pulse" />
+                                    <span className="text-sm text-green-600">Real-time tracking available</span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
-                          {stepIdx < route.steps.length - 1 && (
-                            <ChevronRight className="h-4 w-4 text-gray-400" />
-                          )}
                         </div>
                       ))}
                     </div>
