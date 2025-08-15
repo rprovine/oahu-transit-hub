@@ -58,6 +58,7 @@ export default function TripPlanner() {
     favorites: [] as string[]
   });
   const [realtimeUpdates, setRealtimeUpdates] = useState<Map<string, any>>(new Map());
+  const [planningError, setPlanningError] = useState<string | null>(null);
 
   // Load saved locations and URL parameters on mount
   useEffect(() => {
@@ -339,6 +340,8 @@ export default function TripPlanner() {
     if (!origin || !destination) return;
     
     setIsPlanning(true);
+    setPlanningError(null);
+    setRoutes([]);
     
     try {
       let originCoords, destCoords;
@@ -370,8 +373,9 @@ export default function TripPlanner() {
         // Geocode the origin address
         const originGeocode = await fetch(`/api/geocode?q=${encodeURIComponent(origin)}`);
         const originData = await originGeocode.json();
-        if (!originData.success) {
-          throw new Error('Failed to geocode origin address');
+        if (!originData.success || !originData.suggestions || originData.suggestions.length === 0) {
+          console.error('Origin geocoding failed:', originData);
+          throw new Error('Failed to geocode origin address: ' + origin);
         }
         originCoords = originData.suggestions[0]?.center;
       }
@@ -380,14 +384,21 @@ export default function TripPlanner() {
       const destGeocode = await fetch(`/api/geocode?q=${encodeURIComponent(destination)}`);
       const destData = await destGeocode.json();
       
-      if (!destData.success) {
-        throw new Error('Failed to geocode destination address');
+      if (!destData.success || !destData.suggestions || destData.suggestions.length === 0) {
+        console.error('Destination geocoding failed:', destData);
+        throw new Error('Failed to geocode destination address: ' + destination);
       }
       
       destCoords = destData.suggestions[0]?.center;
       
       if (!originCoords || !destCoords) {
-        throw new Error('Could not find coordinates for addresses');
+        console.error('Could not geocode addresses', {
+          origin: origin,
+          originCoords: originCoords,
+          destination: destination,
+          destCoords: destCoords
+        });
+        throw new Error('Could not geocode addresses');
       }
       
       console.log('Selected coordinates:', {
@@ -679,7 +690,18 @@ export default function TripPlanner() {
       setRoutes(finalRoutes);
     } catch (error) {
       console.error('Trip planning error:', error);
-      // No fallback to mock data - show empty results
+      // Set user-friendly error message
+      if (error instanceof Error) {
+        if (error.message.includes('geocode')) {
+          setPlanningError('Unable to find one or both addresses. Please check your input and try again.');
+        } else if (error.message.includes('geolocation')) {
+          setPlanningError('Unable to get your current location. Please enable location services or enter an address.');
+        } else {
+          setPlanningError('Unable to plan your trip. Please try again.');
+        }
+      } else {
+        setPlanningError('An unexpected error occurred. Please try again.');
+      }
       setRoutes([]);
     } finally {
       setIsPlanning(false);
@@ -987,6 +1009,31 @@ export default function TripPlanner() {
               </div>
             </div>
           </div>
+
+          {/* Error Message */}
+          {planningError && !isPlanning && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 mt-0.5">
+                  <svg className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-red-800">Unable to plan route</h3>
+                  <p className="text-sm text-red-700 mt-1">{planningError}</p>
+                </div>
+                <button
+                  onClick={() => setPlanningError(null)}
+                  className="flex-shrink-0 text-red-600 hover:text-red-800"
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Loading Overlay */}
           {isPlanning && (
