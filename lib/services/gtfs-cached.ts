@@ -79,25 +79,30 @@ export class GTFSCachedService {
       return [];
     }
 
-    // Log the nearest stops for debugging
+    // Log the nearest stops with their routes for debugging
     if (originStops.length > 0) {
       console.log(`🚏 Nearest origin stops:`);
-      originStops.slice(0, 3).forEach(s => {
-        console.log(`   - ${s.stop_name} (${(s.distance! * 1000).toFixed(0)}m)`);
+      originStops.slice(0, 5).forEach(s => {
+        const routes = this.getRoutesForStop(s.stop_id);
+        console.log(`   - ${s.stop_name} (${(s.distance! * 1000).toFixed(0)}m) - Routes: ${routes.map(r => r.route_short_name || r.route_id).join(', ')}`);
       });
     }
     if (destStops.length > 0) {
       console.log(`🚏 Nearest destination stops:`);
-      destStops.slice(0, 3).forEach(s => {
-        console.log(`   - ${s.stop_name} (${(s.distance! * 1000).toFixed(0)}m)`);
+      destStops.slice(0, 5).forEach(s => {
+        const routes = this.getRoutesForStop(s.stop_id);
+        console.log(`   - ${s.stop_name} (${(s.distance! * 1000).toFixed(0)}m) - Routes: ${routes.map(r => r.route_short_name || r.route_id).join(', ')}`);
       });
     }
 
     const routes = [];
 
-    // Check for direct routes
-    for (const originStop of originStops.slice(0, 5)) { // Limit to nearest 5 stops
-      for (const destStop of destStops.slice(0, 5)) {
+    // Check for direct routes - expand search to more stops if needed
+    const maxStopsToCheck = Math.min(10, originStops.length, destStops.length);
+    console.log(`🔄 Checking up to ${maxStopsToCheck} stops at each end for direct routes...`);
+    
+    for (const originStop of originStops.slice(0, maxStopsToCheck)) {
+      for (const destStop of destStops.slice(0, maxStopsToCheck)) {
         const originRoutes = this.getRoutesForStop(originStop.stop_id);
         const destRoutes = this.getRoutesForStop(destStop.stop_id);
         
@@ -105,6 +110,10 @@ export class GTFSCachedService {
         const commonRoutes = originRoutes.filter(oRoute =>
           destRoutes.some(dRoute => dRoute.route_id === oRoute.route_id)
         );
+
+        if (commonRoutes.length > 0) {
+          console.log(`✅ Found direct route(s) between ${originStop.stop_name} and ${destStop.stop_name}: ${commonRoutes.map(r => r.route_short_name || r.route_id).join(', ')}`);
+        }
 
         for (const route of commonRoutes) {
           const walkToStopTime = Math.round((originStop.distance! * 1000) / 80); // 80m/min

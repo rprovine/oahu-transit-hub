@@ -1026,7 +1026,9 @@ export default function TripPlanner() {
                                   <div className="text-right ml-4">
                                     <p className="text-sm font-medium text-gray-900">{step.duration} min</p>
                                     {step.distance && (
-                                      <p className="text-xs text-gray-500">{(step.distance / 1000).toFixed(1)} km</p>
+                                      <p className="text-xs text-gray-500">
+                                        {step.distance < 1000 ? `${step.distance}m` : `${(step.distance / 1000).toFixed(1)}km`}
+                                      </p>
                                     )}
                                   </div>
                                 </div>
